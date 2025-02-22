@@ -1,6 +1,6 @@
 import { STATUS_CODES } from '../constants/statusCodeConstants.js'
 import { RESPONSE_MESSAGES } from '../constants/responseMessages.js';
-import { logger } from "../utils/logger.js";
+import  logger  from "../utils/logger.js";
 
 /**
  * Method : 
