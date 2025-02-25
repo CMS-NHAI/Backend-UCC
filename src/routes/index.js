@@ -3,6 +3,6 @@ import uccRoutes from "../routes/uccRoutes.js";
 
 const router = express.Router();
 
-router.use("/ucc", uccRoutes);
+router.use("/api", uccRoutes);
 
 export default router;
