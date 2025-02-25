@@ -12,7 +12,7 @@ app.use(compression());
 app.use(cors());
 app.use(express.json());
 
-app.use("/api", centralizedRoutes);
+app.use("/ucc", centralizedRoutes);
 
 
 const PORT =  process.env.PORT || 3005;
