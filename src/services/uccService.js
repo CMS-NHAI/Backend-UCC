@@ -1,10 +1,11 @@
-import { PutObjectCommand } from "@aws-sdk/client-s3";
-import {prisma} from '../config/prismaClient.js';
-import {upload} from '../helpers/multerConfig.js';
-import APIError from "../utils/apiError.js";
+import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { s3Client } from '../config/default.js';
+import { prisma } from '../config/prismaClient.js';
 import { RESPONSE_MESSAGES } from '../constants/responseMessages.js';
 import { STATUS_CODES } from '../constants/statusCodeConstants.js';
-import { s3Client } from '../config/default.js';
+import { upload } from '../helpers/multerConfig.js';
+import APIError from "../utils/apiError.js";
+import logger from "../utils/logger.js";
 
 export const uploadFileService = async (req, res) => {
   await new Promise((resolve, reject) => {
@@ -59,3 +60,60 @@ export const uploadFileService = async (req, res) => {
 
   return savedFile;
 };
+
+/**
+ * Fetches the file from the S3 bucket and retrieves its details from the database.
+ * It returns the file stream (from S3) and the file name for use in the download response.
+ *
+ * @param {Object} req - The Express request object. Used for logging purposes.
+ * @param {string} userId - The ID of the user whose file is being fetched.
+ * 
+ * @returns {Object} - Returns an object containing the S3 file stream (`data.Body`) and the file name.
+ * 
+ * @throws {APIError} - Throws an error if the file record is not found or an S3 request fails.
+ */
+export async function getFileFromS3(req, userId) {
+  try {
+    logger.info("Fetching document detail from DB");
+    const fileRecord = await prisma.supporting_documents.findFirst({
+      where: {
+        created_by: userId.toString(),
+        is_deleted: false
+      },
+      select: {
+        document_id: true,
+        document_path: true,
+        document_name: true,
+        is_deleted: true,
+      }
+    });
+
+    if (!fileRecord) {
+      throw new APIError(STATUS_CODES.NOT_FOUND, RESPONSE_MESSAGES.ERROR.FILE_NOT_FOUND);
+    }
+
+    logger.info("Document detail fetched successfully.")
+    const fileKey = fileRecord.document_path;
+    const getObjectParams = {
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: fileKey,
+    };
+
+    logger.info("Fetching File from S3 bucket.")
+    const command = new GetObjectCommand(getObjectParams);
+    const data = await s3Client.send(command);
+    const fileName = fileKey.split('/').pop();
+    logger.info("File fetched successfully from S3 bucket.")
+
+    return { data: data.Body, fileName };
+  } catch (error) {
+    logger.error({
+      message: RESPONSE_MESSAGES.ERROR.REQUEST_PROCESSING_ERROR,
+      error: error,
+      url: req.url,
+      method: req.method,
+      time: new Date().toISOString(),
+    });
+    throw new APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, RESPONSE_MESSAGES.ERROR.ERROR_FILE_DOWNLOAD);
+  }
+}
