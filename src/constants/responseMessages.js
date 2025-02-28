@@ -6,13 +6,14 @@ export const RESPONSE_MESSAGES = {
       REQUEST_PROCESSING_ERROR: "Error Occured while processing request",
       STRETCH_DATA_ERROR: "An error occurred while creating required stretch based on given start and end chainages.",
       FILE_NOT_FOUND: "File not found",
-      REQUEST_PROCESSING_ERROR: "Request processing error",
       FILE_UPLOAD_FAILED: "File upload failed",
       USER_NOT_FOUND: "User not found",
       DOCUMENT_TYPE_NOT_FOUND : "Document type not provided",
       INVALID_FILE_TYPE:"Invalid file type. Only kml files are allowed.",
+      ERROR_FILE_DOWNLOAD: "Error occurred while downloading the file from S3 bucket"
     },
     SUCCESS: {
         FILE_UPLOADED: "File uploaded successfully",
+        FILE_FETCHED: "File fetched successfully",
     },
   }
