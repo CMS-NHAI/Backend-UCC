@@ -23,7 +23,7 @@ export async function errorResponse(req, res, error) {
         time: new Date().toISOString(),
     });
     if (error instanceof APIError) {
-        return res.status(error.statusCode).json({
+        return res.status(error.status).json({
             success: false,
             message: error.message,
         });
