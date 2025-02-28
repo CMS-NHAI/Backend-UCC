@@ -3,6 +3,8 @@ import compression from 'compression';
 import helmet from 'helmet';
 import cors from 'cors';
 import centralizedRoutes from './routes/index.js'
+import dotenv from 'dotenv';
+dotenv.config();
 
 const app = express();
 
