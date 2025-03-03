@@ -3,14 +3,24 @@ import { RESPONSE_MESSAGES } from '../constants/responseMessages.js';
 import { STATUS_CODES } from '../constants/statusCodeConstants.js';
 import { errorResponse } from '../helpers/errorHelper.js';
 import { fetchRequiredStretchData } from '../services/stretchService.js';
-import logger from '../utils/logger.js';
-const prisma = new PrismaClient();
+import  logger  from "../utils/logger.js";
+import APIError from '../utils/apiError.js';
+import { uploadFileService } from '../services/uccService.js';
+
 
 /**
  * Method : 
  * Params :
  * Description
 */
+
+// const s3Client = new S3Client({
+//     region: process.env.AWS_REGION ,
+//     credentials: {
+//         accessKeyId: process.env.AWS_ACCESS_KEY_ID ,
+//         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY 
+//     }
+// });
 
 export const getUcc = async (req, res) => {
 
@@ -92,3 +102,16 @@ export async function getRequiredStretch(req, res) {
     await errorResponse(req, res, error);
   }
 }
+export const uploadFile = async (req, res) => {
+  try {
+    const savedFile = await uploadFileService(req, res);
+
+    res.status(STATUS_CODES.OK).json({
+      status: true,
+      message: RESPONSE_MESSAGES.SUCCESS.FILE_UPLOADED,
+      data: savedFile,
+    });
+  } catch (error) {
+    return await errorResponse(req, res,error);
+  }
+};

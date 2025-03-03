@@ -1,11 +1,11 @@
 class APIError extends Error {
-	constructor(message, status, isOperational = true) {
+	constructor(status, message, isOperational = true) {
 		super(message);
-		this.name = this.constructor.name;
+		// this.name = this.constructor.name;
 		this.message = message;
 		this.status = status;
-		this.isOperational = isOperational;
-		Error.captureStackTrace(this, this.constructor);
+		// this.isOperational = isOperational;
+		// Error.captureStackTrace(this, this.constructor);
 	}
 }
 
