@@ -1,6 +1,6 @@
 import express from "express";
 import { STRING_CONSTANT } from "../constants/stringConstant.js";
-import { getFile, getRequiredStretch, getTypeOfWork, getUcc,insertTypeOfWorkController,uploadFile } from "../controllers/uccController.js";
+import { getFile, getRequiredStretch,  getSchemes, getStates, getTypeOfWork, getUcc,insertTypeOfWorkController,uploadFile } from "../controllers/uccController.js";
 import validate from "../middlewares/validate.js";
 import { validateToken } from "../middlewares/validateToken.js";
 import { getRequiredStretchParamsValidationSchema, getRequiredStretchQueryValidationSchema, typeOfWorkRequestBodySchema } from "../validations/uccValidation.js";
@@ -8,6 +8,9 @@ const router = express.Router()
 
 router.get('/list', getUcc);
 router.get('/type_of_work', validateToken, getTypeOfWork);
+router.get('/schemes', validateToken, getSchemes);
+router.get('/states', validateToken, getStates);
+
 router.get(
     '/getRequiredStretch/:uccId',
     validateToken, validate(getRequiredStretchQueryValidationSchema, STRING_CONSTANT.QUERY),
