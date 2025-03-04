@@ -5,7 +5,7 @@ import { errorResponse } from '../helpers/errorHelper.js';
 import { fetchRequiredStretchData } from '../services/stretchService.js';
 import  logger  from "../utils/logger.js";
 import APIError from '../utils/apiError.js';
-import { getFileFromS3, uploadFileService } from '../services/uccService.js';
+import { getFileFromS3, insertTypeOfWork, uploadFileService } from '../services/uccService.js';
 import { HEADER_CONSTANTS } from '../constants/headerConstant.js';
 
 
@@ -200,3 +200,19 @@ export const getStates = async (req, res) => {
     });
   }
 };
+
+export const insertTypeOfWorkController = async(req, res) => {
+  try {
+    logger.info("UccController :: method: insertTypeOfWorkController");
+    const userId = req.user?.user_id;
+    const reqBody = req.body;
+    const data = await insertTypeOfWork(req, userId, reqBody);
+
+    res.status(STATUS_CODES.CREATED).json({
+      status: true,
+      data
+    });
+  } catch (error) {
+    return await errorResponse(req, res, error);
+  }
+}
