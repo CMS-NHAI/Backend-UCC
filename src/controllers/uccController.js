@@ -5,7 +5,8 @@ import { errorResponse } from '../helpers/errorHelper.js';
 import { fetchRequiredStretchData } from '../services/stretchService.js';
 import  logger  from "../utils/logger.js";
 import APIError from '../utils/apiError.js';
-import { uploadFileService } from '../services/uccService.js';
+import { getFileFromS3, uploadFileService } from '../services/uccService.js';
+import { HEADER_CONSTANTS } from '../constants/headerConstant.js';
 
 
 /**
@@ -113,5 +114,27 @@ export const uploadFile = async (req, res) => {
     });
   } catch (error) {
     return await errorResponse(req, res,error);
+  }
+};
+
+/**
+ * This function fetches the file based on the user ID, sets appropriate headers, 
+ * and pipes the file stream to the response.
+ * 
+ * @param {Object} req - The Express request object.
+ * @param {Object} res - The Express response object.
+ * 
+ * @throws {APIError} - Throws an error if the file could not be retrieved or some other issue occurs.
+ */
+export const getFile = async (req, res) => {
+  try {
+    logger.info("UccController :: method: getFile");
+    const userId = req.user?.user_id;
+    const response = await getFileFromS3(req, userId);
+    res.setHeader(HEADER_CONSTANTS.CONTENT_TYPE, HEADER_CONSTANTS.KML_CONTENT_TYPE);
+    res.setHeader(HEADER_CONSTANTS.CONTENT_DISPOSITION, `attachment; filename="${response.fileName}"`);
+    response.data.pipe(res);
+  } catch (error) {
+    return await errorResponse(req, res, error);
   }
 };
