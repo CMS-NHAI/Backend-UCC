@@ -6,6 +6,8 @@ import { STATUS_CODES } from '../constants/statusCodeConstants.js';
 import { upload } from '../helpers/multerConfig.js';
 import APIError from "../utils/apiError.js";
 import logger from "../utils/logger.js";
+import { getBlackSpotInsertData, getSegmentInsertData } from "../utils/uccUtil.js";
+import { ALLOWED_TYPES_OF_WORK } from "../constants/stringConstant.js";
 
 export const uploadFileService = async (req, res) => {
   await new Promise((resolve, reject) => {
@@ -115,5 +117,53 @@ export async function getFileFromS3(req, userId) {
       time: new Date().toISOString(),
     });
     throw new APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, RESPONSE_MESSAGES.ERROR.ERROR_FILE_DOWNLOAD);
+  }
+}
+
+export async function insertTypeOfWork(req, userId, reqBody) {
+  try {
+    const dataToInsert = [];
+
+    // Insert segment data
+    for (const [typeOfWork, workData] of Object.entries(reqBody)) {
+      if (!ALLOWED_TYPES_OF_WORK.includes(typeOfWork)) {
+        throw new APIError(STATUS_CODES.BAD_REQUEST, `Invalid typeOfWork: ${typeOfWork}`);
+      }
+
+      // Fetch the type_of_work ID from the database based on the typeOfWork
+      const typeOfWorkRecord = await prisma.type_of_work.findFirst({
+        where: {
+          name_of_work: typeOfWork,
+        },
+      });
+
+      if (!typeOfWorkRecord) {
+        throw new APIError(STATUS_CODES.NOT_FOUND, `type_of_work ${typeOfWork} not found in database`);
+      }
+      const typeOfWorkId = typeOfWorkRecord.ID;
+
+
+      if (Array.isArray(workData)) {
+        // Dynamically handle the insertion for segment or blackSpot based on the typeOfWork
+        workData.forEach((item) => {
+          if (item.typeOfForm === 'segment') {
+            const segmentData = getSegmentInsertData(item, typeOfWorkId, userId);
+            dataToInsert.push(segmentData);
+          } else if (item.typeOfForm === 'blackSpot') {
+            const blackSpotData = getBlackSpotInsertData(item, typeOfWorkId, userId);
+
+            dataToInsert.push(blackSpotData);
+          }
+        });
+      }
+    }
+
+    const result = await prisma.ucc_type_of_work_location.createMany({
+      data: dataToInsert,
+    });
+
+    return result;
+  } catch (err) {
+    throw err;
   }
 }
