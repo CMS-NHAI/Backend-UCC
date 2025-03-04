@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/prismaClient.js';
 import { RESPONSE_MESSAGES } from '../constants/responseMessages.js';
 import { STATUS_CODES } from '../constants/statusCodeConstants.js';
 import { errorResponse } from '../helpers/errorHelper.js';
@@ -7,6 +7,7 @@ import  logger  from "../utils/logger.js";
 import APIError from '../utils/apiError.js';
 import { getFileFromS3, uploadFileService } from '../services/uccService.js';
 import { HEADER_CONSTANTS } from '../constants/headerConstant.js';
+
 
 
 /**
