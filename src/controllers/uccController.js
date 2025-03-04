@@ -117,24 +117,85 @@ export const uploadFile = async (req, res) => {
   }
 };
 
-/**
- * This function fetches the file based on the user ID, sets appropriate headers, 
- * and pipes the file stream to the response.
- * 
- * @param {Object} req - The Express request object.
- * @param {Object} res - The Express response object.
- * 
- * @throws {APIError} - Throws an error if the file could not be retrieved or some other issue occurs.
- */
-export const getFile = async (req, res) => {
+
+export const getSchemes = async (req, res) => {
   try {
-    logger.info("UccController :: method: getFile");
-    const userId = req.user?.user_id;
-    const response = await getFileFromS3(req, userId);
-    res.setHeader(HEADER_CONSTANTS.CONTENT_TYPE, HEADER_CONSTANTS.KML_CONTENT_TYPE);
-    res.setHeader(HEADER_CONSTANTS.CONTENT_DISPOSITION, `attachment; filename="${response.fileName}"`);
-    response.data.pipe(res);
+    const schemes = await prisma.scheme_master.findMany({
+      select: {
+        scheme_id: true,
+        scheme_name: true,
+        is_active:true
+
+        
+      },
+      orderBy: {
+        scheme_name: 'asc'
+      }
+    });
+
+    // If no records found
+    if (!schemes || schemes.length === 0) {
+      return res.status(STATUS_CODES.OK).json({
+        success: false,
+        status: STATUS_CODES.OK,
+        message: 'No Scheme records found',
+        data: []
+      });
+    }
+
+    return res.status(STATUS_CODES.OK).json({
+      success: true,
+      status: STATUS_CODES.OK,
+      message: 'Scheme records retrieved successfully',
+      data: {schemes}
+    });
+
   } catch (error) {
-    return await errorResponse(req, res, error);
+    return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      status: STATUS_CODES.INTERNAL_SERVER_ERROR,
+      message: error.message || 'Internal server error',
+      data: []
+    });
+  }
+};
+
+
+export const getStates = async (req, res) => {
+  try {
+    const states = await prisma.ml_states.findMany({
+      select: {
+        state_id: true,
+        state_name: true
+        },
+      orderBy: {
+        state_name: 'asc'
+      }
+    });
+
+    // If no records found
+    if (!states || states.length === 0) {
+      return res.status(STATUS_CODES.OK).json({
+        success: false,
+        status: STATUS_CODES.OK,
+        message: 'No State records found',
+        data: []
+      });
+    }
+
+    return res.status(STATUS_CODES.OK).json({
+      success: true,
+      status: STATUS_CODES.OK,
+      message: 'State records retrieved successfully',
+      data: {schemes}
+    });
+
+  } catch (error) {
+    return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      status: STATUS_CODES.INTERNAL_SERVER_ERROR,
+      message: error.message || 'Internal server error',
+      data: []
+    });
   }
 };
