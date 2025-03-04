@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { ALLOWED_TYPES_OF_WORK } from '../constants/stringConstant.js';
 
 const uccId = Joi.string().trim().custom((value, helpers) => {
   // If ucc_id is "all", it is valid
@@ -23,6 +24,13 @@ const uccId = Joi.string().trim().custom((value, helpers) => {
   'string.empty': 'ucc_id cannot be an empty string',
   'any.required': 'ucc_id is required',
   'string.pattern.base': 'ucc_id must be alphanumeric and can include letters and numbers only',
+});
+
+const chainageSchema = Joi.object({
+  kilometer: Joi.number().min(0).required(),
+  meter: Joi.number().min(0).required(),
+  lat: Joi.number().min(-90).max(90).required(),
+  long: Joi.number().min(-180).max(180).required(),
 });
 
 export const uccValidationSchema = Joi.object({
@@ -57,3 +65,16 @@ export const getRequiredStretchQueryValidationSchema = Joi.object({
 export const getRequiredStretchParamsValidationSchema = Joi.object({
   uccId
 });
+
+export const typeOfWorkRequestBodySchema = Joi.object().pattern(
+  Joi.string().valid(...ALLOWED_TYPES_OF_WORK),  // Keys must be a valid type of work
+  Joi.array().items(
+    Joi.object({
+      typeOfForm: Joi.string().valid('segment', 'blackSpot').required(),
+      endLane: Joi.number().required(),
+      startChainage: chainageSchema.when('typeOfForm', { is: 'segment', then: Joi.required() }),
+      endChainage: chainageSchema.when('typeOfForm', { is: 'segment', then: Joi.required() }),
+      chainage: chainageSchema.when('typeOfForm', { is: 'blackSpot', then: Joi.required() }),
+    })
+  )
+);
