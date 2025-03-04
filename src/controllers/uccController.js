@@ -188,7 +188,7 @@ export const getStates = async (req, res) => {
       success: true,
       status: STATUS_CODES.OK,
       message: 'State records retrieved successfully',
-      data: {schemes}
+      data: {states}
     });
 
   } catch (error) {
