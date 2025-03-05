@@ -201,6 +201,27 @@ export const getStates = async (req, res) => {
   }
 };
 
+export const getDistrict = async (req, res) => {
+try{
+  const { stateId } = req.query;
+  if (!stateId) {
+    return res.status(400).json({ error: "State ID is required" });
+   }
+
+   const districts = await prisma.districts_master.findMany({
+    select: {
+      district_id: true,
+      district_name: true,
+      //is_active:true
+    },
+    where: { state_id: Number(stateId) },
+  });
+} catch (error) {
+  console.error("Error fetching districts:", error);
+  res.status(500).json({ error: "Internal Server Error" });
+}
+}
+
 export const insertTypeOfWorkController = async(req, res) => {
   try {
     logger.info("UccController :: method: insertTypeOfWorkController");
