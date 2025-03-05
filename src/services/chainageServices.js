@@ -14,6 +14,14 @@ export async function fetchChainageData(req, uccId, reqBody) {
 
         return JSON.parse(result);
 
-    }
+    }catch(error){
+        logger.error({
+            message: RESPONSE_MESSAGES.ERROR.REQUEST_PROCESSING_ERROR,
+            error: error,
+            url: req.url,
+            method: req.method,
+            time: new Date().toISOString(),
+        });
+        throw APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, RESPONSE_MESSAGES.ERROR.STRETCH_DATA_ERROR)
 
 }
