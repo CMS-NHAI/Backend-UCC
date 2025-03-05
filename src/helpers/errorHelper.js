@@ -16,7 +16,7 @@ import logger from "../utils/logger.js";
  */
 export async function errorResponse(req, res, error) {
     logger.error({
-        message: RESPONSE_MESSAGES.ERROR.REQUEST_PROCESSING_ERROR,
+        message: error.message,
         error: error,
         url: req.url,
         method: req.method,
