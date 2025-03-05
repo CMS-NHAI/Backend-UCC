@@ -1,9 +1,9 @@
-import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand, PutObjectCommand,DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client } from '../config/default.js';
 import { prisma } from '../config/prismaClient.js';
+import { upload } from '../helpers/multerConfig.js';
 import { RESPONSE_MESSAGES } from '../constants/responseMessages.js';
 import { STATUS_CODES } from '../constants/statusCodeConstants.js';
-import { upload } from '../helpers/multerConfig.js';
 import APIError from "../utils/apiError.js";
 import logger from "../utils/logger.js";
 import { getBlackSpotInsertData, getSegmentInsertData } from "../utils/uccUtil.js";
@@ -166,4 +166,36 @@ export async function insertTypeOfWork(req, userId, reqBody) {
   } catch (err) {
     throw err;
   }
+}
+export const deleteFileService = async (id) => {
+
+  const result = await prisma.supporting_documents.findUnique({
+    where: {
+      document_id: id,
+    },
+  });
+  if(result.is_deleted == true){
+    return { alreadyDeleted: true };
+  }
+  if (!result) {
+    throw new APIError(STATUS_CODES.NOT_FOUND, RESPONSE_MESSAGES.ERROR.FILE_NOT_FOUND);
+  }
+  const params = {
+    Bucket: process.env.AWS_BUCKET_NAME,
+    Key: result.document_path,
+  }
+  // delete file from s3
+  const s3result = await s3Client.send(new DeleteObjectCommand(params));
+  if (s3result.$metadata.httpStatusCode !== 204) {
+    throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.REQUEST_PROCESSING_ERROR)
+  }
+  const deletedResult = await prisma.supporting_documents.update({
+    where: {
+      document_id: id,
+    },
+    data: {
+      is_deleted: true,
+    },
+  });
+  return deletedResult
 }
