@@ -24,4 +24,5 @@ export async function fetchChainageData(req, uccId, reqBody) {
         });
         throw APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, RESPONSE_MESSAGES.ERROR.STRETCH_DATA_ERROR)
 
+   }
 }
