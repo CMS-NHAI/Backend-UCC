@@ -5,7 +5,7 @@ import { errorResponse } from '../helpers/errorHelper.js';
 import { fetchRequiredStretchData } from '../services/stretchService.js';
 import logger from "../utils/logger.js";
 import APIError from '../utils/apiError.js';
-import { getFileFromS3, insertTypeOfWork, uploadFileService,uploadFileService, deleteFileService } from '../services/uccService.js';
+import { getFileFromS3, insertTypeOfWork,uploadFileService, deleteFileService } from '../services/uccService.js';
 import { HEADER_CONSTANTS } from '../constants/headerConstant.js';
 
 /**

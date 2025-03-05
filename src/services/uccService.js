@@ -4,7 +4,6 @@ import { prisma } from '../config/prismaClient.js';
 import { upload } from '../helpers/multerConfig.js';
 import { RESPONSE_MESSAGES } from '../constants/responseMessages.js';
 import { STATUS_CODES } from '../constants/statusCodeConstants.js';
-import { upload } from '../helpers/multerConfig.js';
 import APIError from "../utils/apiError.js";
 import logger from "../utils/logger.js";
 import { getBlackSpotInsertData, getSegmentInsertData } from "../utils/uccUtil.js";
