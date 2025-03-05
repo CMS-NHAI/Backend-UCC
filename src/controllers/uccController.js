@@ -128,7 +128,7 @@ export const uploadFile = async (req, res) => {
  */
 export const getFile = async (req, res) => {
   try {
-    logger.info("UccController :: method: getFile");
+    logger.info("UccController :: method: getFile.");
     const userId = req.user?.user_id;
     const response = await getFileFromS3(req, userId);
     res.setHeader(HEADER_CONSTANTS.CONTENT_TYPE, HEADER_CONSTANTS.KML_CONTENT_TYPE);
