@@ -5,7 +5,7 @@ import { errorResponse } from '../helpers/errorHelper.js';
 import { fetchRequiredStretchData } from '../services/stretchService.js';
 import logger from "../utils/logger.js";
 import APIError from '../utils/apiError.js';
-import { getFileFromS3, insertTypeOfWork,uploadFileService, deleteFileService } from '../services/uccService.js';
+import { getFileFromS3, insertTypeOfWork, uploadFileService, deleteFileService, uploadMultipleFileService } from '../services/uccService.js';
 import { HEADER_CONSTANTS } from '../constants/headerConstant.js';
 
 /**
@@ -102,6 +102,7 @@ export async function getRequiredStretch(req, res) {
     await errorResponse(req, res, error);
   }
 }
+
 export const uploadFile = async (req, res) => {
   try {
     const savedFile = await uploadFileService(req, res);
@@ -136,16 +137,15 @@ export const deleteFile = async (req, res) => {
   }
 };
 
-
 export const getSchemes = async (req, res) => {
   try {
     const schemes = await prisma.scheme_master.findMany({
       select: {
         scheme_id: true,
         scheme_name: true,
-        is_active:true
+        is_active: true
 
-        
+
       },
       orderBy: {
         scheme_name: 'asc'
@@ -166,7 +166,7 @@ export const getSchemes = async (req, res) => {
       success: true,
       status: STATUS_CODES.OK,
       message: 'Scheme records retrieved successfully',
-      data: {schemes}
+      data: { schemes }
     });
 
   } catch (error) {
@@ -179,14 +179,13 @@ export const getSchemes = async (req, res) => {
   }
 };
 
-
 export const getStates = async (req, res) => {
   try {
     const states = await prisma.ml_states.findMany({
       select: {
         state_id: true,
         state_name: true
-        },
+      },
       orderBy: {
         state_name: 'asc'
       }
@@ -206,7 +205,7 @@ export const getStates = async (req, res) => {
       success: true,
       status: STATUS_CODES.OK,
       message: 'State records retrieved successfully',
-      data: {states}
+      data: { states }
     });
 
   } catch (error) {
@@ -220,43 +219,43 @@ export const getStates = async (req, res) => {
 };
 
 export const getDistrict = async (req, res) => {
-try{
-  const { stateId } = req.query;
-  if (!stateId) {
-    return res.status(400).json({ error: "State ID is required" });
-   }
+  try {
+    const { stateId } = req.query;
+    if (!stateId) {
+      return res.status(400).json({ error: "State ID is required" });
+    }
 
-   const districts = await prisma.districts_master.findMany({
-    select: {
-      district_id: true,
-      district_name: true,
-      //is_active:true
-    },
-    where: { state_id: Number(stateId) },
-  });
-
-  if (!districts || districts.length === 0) {
-    return res.status(STATUS_CODES.NOT_FOUND).json({
-      success: false,
-      status: STATUS_CODES.NOT_FOUND,
-      message: 'No district records found for this state',
-      data: []
+    const districts = await prisma.districts_master.findMany({
+      select: {
+        district_id: true,
+        district_name: true,
+        //is_active:true
+      },
+      where: { state_id: Number(stateId) },
     });
+
+    if (!districts || districts.length === 0) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        status: STATUS_CODES.NOT_FOUND,
+        message: 'No district records found for this state',
+        data: []
+      });
+    }
+
+    return res.status(STATUS_CODES.OK).json({
+      success: true,
+      status: STATUS_CODES.OK,
+      message: 'District records retrieved successfully',
+      data: { districts }
+    });
+  } catch (error) {
+    console.error("Error fetching districts:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
-
-  return res.status(STATUS_CODES.OK).json({
-    success: true,
-    status: STATUS_CODES.OK,
-    message: 'District records retrieved successfully',
-    data: {districts}
-  });
-} catch (error) {
-  console.error("Error fetching districts:", error);
-  res.status(500).json({ error: "Internal Server Error" });
-}
 }
 
-export const insertTypeOfWorkController = async(req, res) => {
+export const insertTypeOfWorkController = async (req, res) => {
   try {
     logger.info("UccController :: method: insertTypeOfWorkController");
     const userId = req.user?.user_id;
@@ -293,3 +292,27 @@ export const getFile = async (req, res) => {
     return await errorResponse(req, res, error);
   }
 };
+
+
+/**
+ * Method : POST
+ * Description : Upload supporting document
+ * Params : files
+*/
+export const uploadSupportingDocument = async (req, res) => {
+  try {
+
+    const savedFiles = await uploadMultipleFileService(req, res);
+
+    return res.status(STATUS_CODES.OK).json({
+      success: true,
+      status: STATUS_CODES.OK,
+      message: RESPONSE_MESSAGES.SUCCESS.FILE_UPLOADED,
+      data: savedFiles,
+    });
+
+  } catch (error) {
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ success: false, status: STATUS_CODES.INTERNAL_SERVER_ERROR, message: error.message })
+  }
+};
+

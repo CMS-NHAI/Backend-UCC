@@ -10,7 +10,8 @@ export const RESPONSE_MESSAGES = {
       USER_NOT_FOUND: "User not found",
       DOCUMENT_TYPE_NOT_FOUND : "Document type not provided",
       INVALID_FILE_TYPE:"Invalid file type. Only kml files are allowed.",
-      ERROR_FILE_DOWNLOAD: "Error occurred while downloading the file from S3 bucket"
+      ERROR_FILE_DOWNLOAD: "Error occurred while downloading the file from S3 bucket",
+      INVALID_PDF_FILE_TYPE:"Invalid file type. Only PDF files are allowed."
     },
     SUCCESS: {
         FILE_UPLOADED: "File uploaded successfully",
