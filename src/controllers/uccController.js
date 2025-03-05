@@ -1,12 +1,12 @@
-import { prisma } from '../config/prismaClient.js';
+import { HEADER_CONSTANTS } from '../constants/headerConstant.js';
 import { RESPONSE_MESSAGES } from '../constants/responseMessages.js';
 import { STATUS_CODES } from '../constants/statusCodeConstants.js';
 import { errorResponse } from '../helpers/errorHelper.js';
-import { fetchRequiredStretchData } from '../services/stretchService.js';
-import logger from "../utils/logger.js";
 import APIError from '../utils/apiError.js';
-import { getFileFromS3, insertTypeOfWork, uploadFileService, deleteFileService, uploadMultipleFileService } from '../services/uccService.js';
-import { HEADER_CONSTANTS } from '../constants/headerConstant.js';
+import logger from "../utils/logger.js";
+import { getFileFromS3, insertTypeOfWork,uploadFileService, deleteFileService, getAllImplementationModes, uploadMultipleFileService } from '../services/uccService.js';
+// import uccService from '../services/uccService.js';
+
 
 /**
  * Method : 
@@ -76,33 +76,6 @@ export const getTypeOfWork = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle the request for required stretch data.
- * This function retrieves stretch data based on the provided UCC ID and chainage coordinates from the query parameters.
- * 
- * @param {Object} req - The request object.
- * @param {Object} res - The response object.
- * @throws {Error} If there is an error while fetching the required stretch data or during any other part of the process.
- * 
- * @returns {Promise<void>} The function sends a JSON response with the success status and stretch data, or an error response.
- */
-export async function getRequiredStretch(req, res) {
-  try {
-    logger.info("UCC Controller :: getRequiredStretch");
-    const { startChainagesLat, startChainagesLong, endChainagesLat, endChainagesLong } = req.query;
-    const uccId = req.params.uccId
-
-    const data = await fetchRequiredStretchData(uccId, JSON.parse(startChainagesLat), JSON.parse(startChainagesLong), JSON.parse(endChainagesLat), JSON.parse(endChainagesLong));
-
-    res.status(STATUS_CODES.OK).json({
-      success: true,
-      data
-    })
-  } catch (error) {
-    await errorResponse(req, res, error);
-  }
-}
-
 export const uploadFile = async (req, res) => {
   try {
     const savedFile = await uploadFileService(req, res);
@@ -113,7 +86,7 @@ export const uploadFile = async (req, res) => {
       data: savedFile,
     });
   } catch (error) {
-    return await errorResponse(req, res, error);
+    return await errorResponse(req, res,error);
   }
 };
 
@@ -293,7 +266,6 @@ export const getFile = async (req, res) => {
   }
 };
 
-
 /**
  * Method : POST
  * Description : Upload supporting document
@@ -314,5 +286,18 @@ export const uploadSupportingDocument = async (req, res) => {
   } catch (error) {
     res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ success: false, status: STATUS_CODES.INTERNAL_SERVER_ERROR, message: error.message })
   }
+};
+
+export const getImplementationModes = async (req,res, next) => {
+    try {
+        const modes = await getAllImplementationModes();
+        res.status(STATUS_CODES.OK).json({
+          status: true,
+          message: "",
+          data: modes,
+        });
+    } catch (error) {
+    return await errorResponse(req, res, error);
+    }
 };
 
