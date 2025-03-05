@@ -199,3 +199,8 @@ export const deleteFileService = async (id) => {
   });
   return deletedResult
 }
+
+export const getAllImplementationModes = async () => {
+  const allModes = await prisma.ucc_implementation_mode.findMany();
+  return allModes
+};

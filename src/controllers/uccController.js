@@ -2,10 +2,10 @@ import { HEADER_CONSTANTS } from '../constants/headerConstant.js';
 import { RESPONSE_MESSAGES } from '../constants/responseMessages.js';
 import { STATUS_CODES } from '../constants/statusCodeConstants.js';
 import { errorResponse } from '../helpers/errorHelper.js';
-import { getFileFromS3, insertTypeOfWork, uploadFileService } from '../services/uccService.js';
 import APIError from '../utils/apiError.js';
 import logger from "../utils/logger.js";
-
+import { getFileFromS3, insertTypeOfWork,uploadFileService, deleteFileService, getAllImplementationModes } from '../services/uccService.js';
+// import uccService from '../services/uccService.js';
 
 /**
  * Method : 
@@ -265,4 +265,18 @@ export const getFile = async (req, res) => {
   } catch (error) {
     return await errorResponse(req, res, error);
   }
+};
+
+
+export const getImplementationModes = async (req,res, next) => {
+    try {
+        const modes = await getAllImplementationModes();
+        res.status(STATUS_CODES.OK).json({
+          status: true,
+          message: "",
+          data: modes,
+        });
+    } catch (error) {
+    return await errorResponse(req, res, error);
+    }
 };
