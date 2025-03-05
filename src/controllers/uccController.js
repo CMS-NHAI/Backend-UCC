@@ -136,9 +136,9 @@ export const getSchemes = async (req, res) => {
 
     // If no records found
     if (!schemes || schemes.length === 0) {
-      return res.status(STATUS_CODES.OK).json({
+      return res.status(STATUS_CODES.NOT_FOUND).json({
         success: false,
-        status: STATUS_CODES.OK,
+        status: STATUS_CODES.NOT_FOUND,
         message: 'No Scheme records found',
         data: []
       });
@@ -215,6 +215,22 @@ try{
       //is_active:true
     },
     where: { state_id: Number(stateId) },
+  });
+
+  if (!districts || districts.length === 0) {
+    return res.status(STATUS_CODES.NOT_FOUND).json({
+      success: false,
+      status: STATUS_CODES.NOT_FOUND,
+      message: 'No district records found for this state',
+      data: []
+    });
+  }
+
+  return res.status(STATUS_CODES.OK).json({
+    success: true,
+    status: STATUS_CODES.OK,
+    message: 'District records retrieved successfully',
+    data: {districts}
   });
 } catch (error) {
   console.error("Error fetching districts:", error);
