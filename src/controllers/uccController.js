@@ -296,7 +296,7 @@ export const getFile = async (req, res) => {
 };
 
 
-export const getImplementationModes = async (req, res, next) => {
+export const getImplementationModes = async (req,res, next) => {
     try {
         const modes = await getAllImplementationModes();
         res.status(STATUS_CODES.OK).json({

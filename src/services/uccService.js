@@ -202,8 +202,5 @@ export const deleteFileService = async (id) => {
 
 export const getAllImplementationModes = async () => {
   const allModes = await prisma.ucc_implementation_mode.findMany();
-  // console.log(allModes);
   return allModes
-
-    // return prisma.ucc_implementation_mode.findMany();
 };

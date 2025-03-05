@@ -25,7 +25,7 @@ router.get(
 );
 router.post('/upload',validateToken, uploadFile);
 router.get('/getFile',validateToken, getFile);
-router.get('/getImplementationModes',validateToken, getImplementationModes);
+router.get('/getImplementationModes',validateToken,getImplementationModes);
 router.post(
     '/insertTypeOfWork',
     validateToken,
