@@ -3,12 +3,10 @@ import { RESPONSE_MESSAGES } from '../constants/responseMessages.js';
 import { STATUS_CODES } from '../constants/statusCodeConstants.js';
 import { errorResponse } from '../helpers/errorHelper.js';
 import { fetchRequiredStretchData } from '../services/stretchService.js';
-import  logger  from "../utils/logger.js";
+import logger from "../utils/logger.js";
 import APIError from '../utils/apiError.js';
-import { getFileFromS3, insertTypeOfWork, uploadFileService } from '../services/uccService.js';
+import { getFileFromS3, insertTypeOfWork, uploadFileService,uploadFileService, deleteFileService } from '../services/uccService.js';
 import { HEADER_CONSTANTS } from '../constants/headerConstant.js';
-
-
 
 /**
  * Method : 
@@ -114,7 +112,27 @@ export const uploadFile = async (req, res) => {
       data: savedFile,
     });
   } catch (error) {
-    return await errorResponse(req, res,error);
+    return await errorResponse(req, res, error);
+  }
+};
+
+export const deleteFile = async (req, res) => {
+  try {
+    const { id } = req.body;
+    const deletedFile = await deleteFileService(id);
+    if (deletedFile?.alreadyDeleted) {
+      return res.status(STATUS_CODES.OK).json({
+        success: true,
+        message: RESPONSE_MESSAGES.SUCCESS.FILE_ALREADY_DELETED,
+      });
+    }
+    return res.status(STATUS_CODES.OK).json({
+      status: true,
+      message: RESPONSE_MESSAGES.SUCCESS.FILE_DELETED,
+      data: deletedFile
+    });
+  } catch (error) {
+    return await errorResponse(req, res, error);
   }
 };
 
