@@ -1,7 +1,7 @@
-import { GetObjectCommand, PutObjectCommand,DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client } from '../config/default.js';
 import { prisma } from '../config/prismaClient.js';
-import { upload } from '../helpers/multerConfig.js';
+import { upload, ValidateSupportingPDF } from '../helpers/multerConfig.js';
 import { RESPONSE_MESSAGES } from '../constants/responseMessages.js';
 import { STATUS_CODES } from '../constants/statusCodeConstants.js';
 import APIError from "../utils/apiError.js";
@@ -62,6 +62,79 @@ export const uploadFileService = async (req, res) => {
 
   return savedFile;
 };
+
+export const uploadMultipleFileService = async (req, res) => {
+
+  await new Promise((resolve, reject) => {
+
+    ValidateSupportingPDF.array('files', 10)(req, res, (err) => {
+
+      if (err) {
+        return reject(
+          new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.INVALID_PDF_FILE_TYPE)
+        );
+      }
+      resolve();
+    });
+  });
+
+  if (!req.files || req.files.length === 0) {
+    throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.NO_FILES_UPLOADED);
+  }
+
+  // Validate user existence (if user_id is required)
+  const user_id = req.user?.user_id;
+  if (!user_id) {
+    throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
+  }
+
+  // file upload
+  const uploadedFilesPromises = req.files.map(async (file) => {
+    const params = {
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: `supporting_document/${Date.now()}-${file.originalname}`,
+      Body: file.buffer,
+      ContentType: file.mimetype,
+    };
+
+    const command = new PutObjectCommand(params);
+
+    // Upload the file to S3
+    const uploadFileResult = await s3Client.send(command);
+
+    if (!uploadFileResult || uploadFileResult.$metadata.httpStatusCode !== STATUS_CODES.OK) {
+
+      throw new APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, RESPONSE_MESSAGES.ERROR.FILE_UPLOAD_FAILED);
+      
+    }
+
+    const savedFile = await prisma.supporting_documents.create({
+      data: {
+        document_type: "pdf",
+        document_name: file.originalname,
+        document_path: params.Key,
+        key_name: "",
+        is_deleted: false,
+        created_by: user_id.toString(),
+        status: "Draft",
+      },
+    });
+
+    return savedFile; // Return the saved file metadata
+  });
+
+  try {
+    const savedFiles = await Promise.all(uploadedFilesPromises);
+    return savedFiles
+    // return res.status(STATUS_CODES.OK).json({
+    //   files: savedFiles,
+    // });
+  } catch (error) {
+    console.error(error);
+    throw new APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, RESPONSE_MESSAGES.ERROR.FILE_UPLOAD_FAILED);
+  }
+};
+
 
 /**
  * Fetches the file from the S3 bucket and retrieves its details from the database.
@@ -174,7 +247,7 @@ export const deleteFileService = async (id) => {
       document_id: id,
     },
   });
-  if(result.is_deleted == true){
+  if (result.is_deleted == true) {
     return { alreadyDeleted: true };
   }
   if (!result) {

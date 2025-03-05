@@ -12,6 +12,18 @@ const kmlFilter = (req, file, cb) => {
   }
 };
 
+const supprotingDocPdf = (req, file, cb) => {
+  if (path.extname(file.originalname).toLowerCase() === ".pdf") {
+    cb(null, true);
+  } else {
+    cb(new Error(RESPONSE_MESSAGES.ERROR.INVALID_PDF_FILE_TYPE), false);
+  }
+};
+
 export const upload = multer({ storage,limits: {
     fileSize: 5 * 1024 * 1024 // no larger than 5mb
 }, fileFilter: kmlFilter });
+
+export const ValidateSupportingPDF = multer({ storage, limits: {
+  fileSize: 5 * 1024 * 1024 // no larger than 5mb
+}, fileFilter: supprotingDocPdf});
