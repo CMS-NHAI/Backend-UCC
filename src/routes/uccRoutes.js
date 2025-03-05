@@ -1,15 +1,10 @@
 import express from "express";
-
-import { deleteFile, getDistrict, getFile, getSchemes, getStates, getTypeOfWork, getUcc, insertTypeOfWorkController, uploadFile, getImplementationModes } from "../controllers/uccController.js";
-
-import { validateToken } from "../middlewares/validateToken.js";
-
-import { STRING_CONSTANT } from "../constants/stringConstant.js";
-
-import { getDistrict, getRequiredStretch,  getSchemes, getStates, getTypeOfWork, getUcc,insertTypeOfWorkController,uploadFile,deleteFile,getFile, uploadSupportingDocument } from "../controllers/uccController.js";
-
+import { saveContractDetails } from "../controllers/saveContractController.js";
 import validate from "../middlewares/validate.js";
-import { getRequiredStretchParamsValidationSchema, getRequiredStretchQueryValidationSchema, typeOfWorkRequestBodySchema } from "../validations/uccValidation.js";
+import { validateToken } from "../middlewares/validateToken.js";
+import { STRING_CONSTANT } from "../constants/stringConstant.js";
+import { getDistrict, getSchemes, getStates, getTypeOfWork, getUcc,insertTypeOfWorkController,uploadFile,deleteFile,getFile, uploadSupportingDocument,getImplementationModes } from "../controllers/uccController.js";
+import { getRequiredStretchParamsValidationSchema, getRequiredStretchQueryValidationSchema, typeOfWorkRequestBodySchema,saveContractDetailsSchema } from "../validations/uccValidation.js";
 import { getChainageByUcc } from "../controllers/chainageController.js";
 
 const router = express.Router()
@@ -33,5 +28,6 @@ router.post(
 );
 router.post('/deleteFile',validateToken,deleteFile);
 router.post('/upload/supporting/document', validateToken, uploadSupportingDocument)
+router.post('/saveContractDetails',validateToken,validate(saveContractDetailsSchema),saveContractDetails);
 
 export default router;

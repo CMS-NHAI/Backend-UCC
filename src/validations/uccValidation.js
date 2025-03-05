@@ -66,7 +66,7 @@ export const getRequiredStretchParamsValidationSchema = Joi.object({
   uccId
 });
 
-export const typeOfWorkRequestBodySchema = Joi.object().pattern(
+export const typeOfWorkRequestBodySchema = Joi.object()
   Joi.string().valid(...ALLOWED_TYPES_OF_WORK),  // Keys must be a valid type of work
   Joi.array().items(
     Joi.object({
@@ -77,4 +77,12 @@ export const typeOfWorkRequestBodySchema = Joi.object().pattern(
       chainage: chainageSchema.when('typeOfForm', { is: 'blackSpot', then: Joi.required() }),
     })
   )
-);
+;
+
+export const saveContractDetailsSchema = Joi.object({
+  shortName: Joi.string().required(),
+  piu:Joi.array().items(Joi.number().required()).required(),
+  implementationId:Joi.number().required(),
+  schemeId:Joi.number().required(),
+  contractName:Joi.string().required(),
+})

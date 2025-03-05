@@ -1,21 +1,16 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema", "postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis(version: "3.5.0"), uuid_ossp(map: "uuid-ossp", schema: "public")]
+  schemas    = ["common", "nhai_gis", "public", "tenant_nhai"]
 }
 
-model actions {
-  action_id   Int       @id @default(autoincrement())
-  action_name String    @unique @db.VarChar(50)
-  description String?
-  created_at  DateTime? @default(now()) @db.Timestamp(6)
-  created_by  String?   @db.VarChar(100)
-}
-
-model am_attendance {
+model public_am_attendance {
   attendance_id             Int                       @id @default(autoincrement())
   ucc_id                    String?                   @db.VarChar
   check_in_time             DateTime?                 @db.Timestamp(6)
@@ -42,23 +37,81 @@ model am_attendance {
   updated_at                DateTime?                 @default(now()) @db.Timestamp(6)
   attendance_date           DateTime?                 @db.Date
   user_id                   Int?
+
+  @@map("am_attendance")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model spatial_ref_sys {
+  srid      Int     @id
+  auth_name String? @db.VarChar(256)
+  auth_srid Int?
+  srtext    String? @db.VarChar(2048)
+  proj4text String? @db.VarChar(2048)
+
+  @@schema("public")
+}
+
+model actions {
+  action_id   Int       @id @default(autoincrement())
+  action_name String    @unique @db.VarChar(50)
+  description String?
+  created_at  DateTime? @default(now()) @db.Timestamp(6)
+  created_by  String?   @db.VarChar(100)
+
+  @@schema("tenant_nhai")
+}
+
+model tenant_nhai_am_attendance {
+  attendance_id             Int                       @id @default(autoincrement())
+  ucc_id                    String?                   @db.VarChar
+  check_in_time             DateTime?                 @db.Timestamp(6)
+  check_in_lat              Decimal?                  @db.Decimal(10, 7)
+  check_in_lng              Decimal?                  @db.Decimal(10, 7)
+  check_in_loc              Unsupported("geography")?
+  check_in_accuracy         Float?
+  check_in_device_id        String?                   @db.VarChar(200)
+  check_in_ip_address       String?                   @db.VarChar(45)
+  check_in_remarks          String?
+  check_in_geofence_status  String?                   @default("INSIDE")
+  check_out_time            DateTime?                 @db.Timestamp(6)
+  check_out_lat             Decimal?                  @db.Decimal(10, 7)
+  check_out_lng             Decimal?                  @db.Decimal(10, 7)
+  check_out_loc             Unsupported("geography")?
+  check_out_accuracy        Float?
+  check_out_device_id       String?                   @db.VarChar(200)
+  check_out_ip_address      String?                   @db.VarChar(45)
+  check_out_remarks         String?
+  check_out_geofence_status String?                   @default("INSIDE")
+  created_by                Int?
+  created_at                DateTime?                 @default(now()) @db.Timestamp(6)
+  updated_by                Int?
+  updated_at                DateTime?                 @default(now()) @db.Timestamp(6)
+  attendance_date           DateTime?                 @db.Date
+  user_id                   Int?
+
+  @@map("am_attendance")
+  @@schema("tenant_nhai")
 }
 
 model authentication {
-  auth_id          Int                         @id @default(autoincrement())
+  auth_id          Int          @id @default(autoincrement())
   user_id          Int
-  login_method     Unsupported("login_method")
-  login_status     Unsupported("login_status")
-  login_time       DateTime                    @default(now()) @db.Timestamp(6)
-  ip_address       String                      @db.VarChar(45)
-  device_type      String                      @db.VarChar(50)
-  retry_count      Int                         @default(0)
-  session_duration DateTime?                   @db.Time(6)
-  created_at       DateTime                    @default(now()) @db.Timestamptz(6)
-  created_by       String?                     @db.VarChar(100)
-  updated_at       DateTime                    @default(now()) @db.Timestamptz(6)
-  updated_by       String?                     @db.VarChar(100)
-  user_master      user_master                 @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+  login_method     login_method
+  login_status     login_status
+  login_time       DateTime     @default(now()) @db.Timestamp(6)
+  ip_address       String       @db.VarChar(45)
+  device_type      String       @db.VarChar(50)
+  retry_count      Int          @default(0)
+  session_duration DateTime?    @db.Time(6)
+  created_at       DateTime     @default(now()) @db.Timestamptz(6)
+  created_by       String?      @db.VarChar(100)
+  updated_at       DateTime     @default(now()) @db.Timestamptz(6)
+  updated_by       String?      @db.VarChar(100)
+  user_master      user_master  @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
 }
 
 model event_log {
@@ -75,6 +128,8 @@ model event_log {
   updated_at      DateTime?    @db.Timestamp(6)
   updated_by      String?      @db.VarChar(100)
   user_master     user_master? @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
 }
 
 model event_log_history {
@@ -92,6 +147,8 @@ model event_log_history {
   updated_at       DateTime?    @db.Timestamp(6)
   updated_by       String?      @db.VarChar(100)
   user_master      user_master? @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
 }
 
 model holiday_master {
@@ -100,6 +157,8 @@ model holiday_master {
   holiday_Date DateTime @db.Date
   region       String   @db.VarChar(255)
   holiday_type String   @db.VarChar(255)
+
+  @@schema("tenant_nhai")
 }
 
 model location_master {
@@ -115,6 +174,8 @@ model location_master {
   location_master       location_master?         @relation("location_masterTolocation_master", fields: [parent_location_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_location_master location_master[]        @relation("location_masterTolocation_master")
   resources             resources[]
+
+  @@schema("tenant_nhai")
 }
 
 model otp_verification {
@@ -131,6 +192,8 @@ model otp_verification {
   updated_by              Int?
   updated_at              DateTime? @default(now()) @db.Timestamp(6)
   otp_hash                String?   @db.VarChar(256)
+
+  @@schema("tenant_nhai")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -148,6 +211,8 @@ model policies {
   priority              Int?                     @default(0)
   created_at            DateTime?                @default(now()) @db.Timestamp(6)
   created_by            String?                  @db.VarChar(100)
+
+  @@schema("tenant_nhai")
 }
 
 model registration_invitation {
@@ -170,6 +235,8 @@ model registration_invitation {
   last_updated_by   Int?
   last_updated_date DateTime? @db.Timestamp(6)
   is_active         Boolean   @default(true)
+
+  @@schema("tenant_nhai")
 }
 
 model resource_attributes {
@@ -183,6 +250,8 @@ model resource_attributes {
   created_at      DateTime?                @default(now()) @db.Timestamp(6)
   created_by      String?                  @db.VarChar(100)
   resources       resources?               @relation(fields: [resource_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
 }
 
 model resource_cache {
@@ -196,6 +265,8 @@ model resource_cache {
   created_at  DateTime?                @default(now()) @db.Timestamp(6)
   created_by  String?                  @db.VarChar(100)
   resources   resources?               @relation(fields: [resource_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
 }
 
 model resources {
@@ -215,6 +286,8 @@ model resources {
   location_master     location_master?         @relation(fields: [location_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   resources           resources?               @relation("resourcesToresources", fields: [parent_resource_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_resources     resources[]              @relation("resourcesToresources")
+
+  @@schema("tenant_nhai")
 }
 
 model supporting_documents {
@@ -231,40 +304,52 @@ model supporting_documents {
   updated_at    DateTime? @default(now()) @db.Timestamptz(6)
   ucc_id        String?   @db.VarChar(16)
   status        String    @db.VarChar
+
+  @@schema("tenant_nhai")
 }
 
 model ucc_master {
-  ucc_id              Int       @id @default(autoincrement())
-  tender_id           String?   @db.VarChar(25)
-  tender_details      Json?     @db.Json
-  temporary_ucc       String?   @db.VarChar(16)
-  permanent_ucc       String?   @unique @db.VarChar(16)
-  contract_name       String
-  phase_code_id       Int?
-  corridor_code_id    Int?
-  stretch_id          Int?
-  project_code_id     Int?
-  package_code_id     Int?
-  state_code_id       Int?
-  usc                 String?   @db.VarChar(10)
-  segment_type        String    @db.VarChar(50)
-  current_lane_number Int?
-  end_lane_number     Int?
-  implementation_mode String    @db.VarChar(50)
-  funding_scheme      String?
-  status              String    @db.VarChar(50)
-  work_types          String[]
-  project_name        String?
-  stretch_name        String?
-  barcode_path        String?
-  qr_code_path        String?
-  user_verified       Boolean?
-  is_deleted          Boolean?  @default(false)
-  created_by          Int?
-  created_at          DateTime? @default(now()) @db.Timestamptz(6)
-  updated_by          Int?
-  updated_at          DateTime? @default(now()) @db.Timestamptz(6)
-  id                  String?   @db.VarChar(16)
+  ucc_id                 Int       @id @default(autoincrement())
+  tender_id              String?   @db.VarChar(25)
+  tender_details         Json?     @db.Json
+  temporary_ucc          String?   @db.VarChar(16)
+  permanent_ucc          String?   @unique @db.VarChar(16)
+  contract_name          String?
+  phase_code_id          Int?
+  corridor_code_id       Int?
+  stretch_id             Int?
+  project_code_id        Int?
+  package_code_id        Int?
+  state_code_id          Int?
+  usc                    String?   @db.VarChar(10)
+  segment_type           String?   @db.VarChar(50)
+  current_lane_number    Int?
+  end_lane_number        Int?
+  implementation_mode    String?   @db.VarChar(50)
+  funding_scheme         String?
+  status                 String?   @db.VarChar(50)
+  work_types             String[]
+  project_name           String?
+  stretch_name           String?
+  barcode_path           String?
+  qr_code_path           String?
+  user_verified          Boolean?
+  is_deleted             Boolean?  @default(false)
+  created_by             Int?
+  created_at             DateTime? @default(now()) @db.Timestamptz(6)
+  updated_by             Int?
+  updated_at             DateTime? @default(now()) @db.Timestamptz(6)
+  id                     String?   @db.VarChar(16)
+  state_id               Int?
+  short_name             String?   @db.VarChar
+  ro_id                  Int?
+  contract_length        Decimal?  @db.Decimal
+  implementation_mode_id Int?
+  scheme_id              Int?
+  piu_id                 Int[]
+  ucc_piu                ucc_piu[]
+
+  @@schema("tenant_nhai")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -274,6 +359,8 @@ model ucc_user_mappings {
   ucc_id  String  @db.VarChar(20)
   remarks String?
   status  String? @db.VarChar(10)
+
+  @@schema("tenant_nhai")
 }
 
 model user_attributes {
@@ -284,58 +371,64 @@ model user_attributes {
   created_at      DateTime?    @default(now()) @db.Timestamp(6)
   created_by      String?      @db.VarChar(100)
   user_master     user_master? @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model user_master {
-  user_id                Int                 @id @default(autoincrement())
-  unique_username        String?             @unique @db.Uuid
-  sap_id                 String?             @unique @db.VarChar(50)
-  name                   String              @db.VarChar(100)
-  first_name             String?             @db.VarChar(50)
-  middle_name            String?             @db.VarChar(50)
-  last_name              String?             @db.VarChar(50)
-  email                  String?             @unique @db.VarChar(100)
-  mobile_number          String?             @unique @db.VarChar(20)
-  user_type              String              @db.VarChar(30)
-  organization_id        Int?                @default(-1)
-  level_id               Int                 @default(-1)
-  user_role              Json                @db.Json
-  designation            String?             @db.VarChar(100)
-  gender                 String?             @db.VarChar(10)
-  nationality            String?             @db.VarChar(100)
-  date_of_birth          DateTime?           @db.Date
-  pan                    Json?               @db.Json
-  aadhar_image           String
-  user_image             String
-  password_hash          String?             @db.VarChar(255)
-  user_data              Json?               @db.Json
-  is_kyc_verified        Boolean?
-  last_kyc_verified_date DateTime?           @db.Timestamptz(6)
-  is_active              Boolean?
-  inactive_at            DateTime?           @db.Timestamptz(6)
-  deactivation_reason    String?             @db.VarChar(255)
-  activation_status      String?             @db.VarChar(20)
-  created_at             DateTime?           @default(now()) @db.Timestamp(6)
-  created_by             String?             @db.VarChar(100)
-  updated_at             DateTime?           @default(now()) @db.Timestamp(6)
-  updated_by             String?             @db.VarChar(100)
-  otp                    String?             @db.VarChar(6)
-  otp_timestamp          DateTime?           @db.Timestamp(6)
-  is_digilocker_verified Boolean?            @default(false)
-  office_location        String?             @db.VarChar(255)
-  is_email_verified      Boolean?            @default(false)
-  is_whatsapp_update     Boolean?            @default(false)
-  verified_status        Boolean?            @default(false)
-  is_admin               Boolean?            @default(false)
-  office_mobile_number   String?             @db.VarChar(20)
-  status                 String?             @db.VarChar(20)
-  parent_id              Int?
-  authentication         authentication[]
-  event_log              event_log[]
-  event_log_history      event_log_history[]
-  user_attributes        user_attributes[]
-  user_sessions          user_sessions[]
+  user_id                                 Int                 @id @default(autoincrement())
+  unique_username                         String?             @unique @db.Uuid
+  sap_id                                  String?             @unique @db.VarChar(50)
+  name                                    String              @db.VarChar(100)
+  first_name                              String?             @db.VarChar(50)
+  middle_name                             String?             @db.VarChar(50)
+  last_name                               String?             @db.VarChar(50)
+  email                                   String?             @unique @db.VarChar(100)
+  mobile_number                           String?             @unique @db.VarChar(20)
+  user_type                               String              @db.VarChar(30)
+  organization_id                         Int?                @default(-1)
+  level_id                                Int                 @default(-1)
+  user_role                               Json                @db.Json
+  designation                             String?             @db.VarChar(100)
+  gender                                  String?             @db.VarChar(10)
+  nationality                             String?             @db.VarChar(100)
+  date_of_birth                           DateTime?           @db.Date
+  pan                                     Json?               @db.Json
+  aadhar_image                            String
+  user_image                              String
+  password_hash                           String?             @db.VarChar(255)
+  user_data                               Json?               @db.Json
+  is_kyc_verified                         Boolean?
+  last_kyc_verified_date                  DateTime?           @db.Timestamptz(6)
+  is_active                               Boolean?
+  inactive_at                             DateTime?           @db.Timestamptz(6)
+  deactivation_reason                     String?             @db.VarChar(255)
+  activation_status                       String?             @db.VarChar(20)
+  created_at                              DateTime?           @default(now()) @db.Timestamp(6)
+  created_by                              String?             @db.VarChar(100)
+  updated_at                              DateTime?           @default(now()) @db.Timestamp(6)
+  updated_by                              String?             @db.VarChar(100)
+  otp                                     String?             @db.VarChar(6)
+  otp_timestamp                           DateTime?           @db.Timestamp(6)
+  is_digilocker_verified                  Boolean?            @default(false)
+  office_location                         String?             @db.VarChar(255)
+  is_email_verified                       Boolean?            @default(false)
+  is_whatsapp_update                      Boolean?            @default(false)
+  verified_status                         Boolean?            @default(false)
+  is_admin                                Boolean?            @default(false)
+  office_mobile_number                    String?             @db.VarChar(20)
+  status                                  String?             @db.VarChar(20)
+  parent_id                               Int?
+  authentication                          authentication[]
+  event_log                               event_log[]
+  event_log_history                       event_log_history[]
+  ucc_piu_ucc_piu_created_byTouser_master ucc_piu[]           @relation("ucc_piu_created_byTouser_master")
+  ucc_piu_ucc_piu_updated_byTouser_master ucc_piu[]           @relation("ucc_piu_updated_byTouser_master")
+  user_attributes                         user_attributes[]
+  user_sessions                           user_sessions[]
+
+  @@schema("tenant_nhai")
 }
 
 model user_sessions {
@@ -350,4 +443,37 @@ model user_sessions {
   is_valid      Boolean?     @default(true)
   created_by    String?      @db.VarChar(100)
   user_master   user_master? @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
+}
+
+model ucc_piu {
+  id                                          Int          @id @default(autoincrement())
+  ucc_id                                      Int
+  piu_id                                      Int
+  created_by                                  Int?
+  created_at                                  DateTime     @default(now()) @db.Timestamp(6)
+  updated_by                                  Int?
+  updated_at                                  DateTime     @default(now()) @db.Timestamp(6)
+  user_master_ucc_piu_created_byTouser_master user_master? @relation("ucc_piu_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  ucc_master                                  ucc_master   @relation(fields: [ucc_id], references: [ucc_id], onDelete: NoAction, onUpdate: NoAction)
+  user_master_ucc_piu_updated_byTouser_master user_master? @relation("ucc_piu_updated_byTouser_master", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
+}
+
+enum login_method {
+  OTP
+  Email
+  Password
+  Biometric
+
+  @@schema("public")
+}
+
+enum login_status {
+  Success
+  Failed
+
+  @@schema("public")
 }
