@@ -15,5 +15,7 @@ export const RESPONSE_MESSAGES = {
     SUCCESS: {
         FILE_UPLOADED: "File uploaded successfully",
         FILE_FETCHED: "File fetched successfully",
+        FILE_DELETED: "File deleted successfully",
+        FILE_ALREADY_DELETED:"File Already Deleted"
     },
   }

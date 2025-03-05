@@ -1,14 +1,13 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/prismaClient.js';
 import { RESPONSE_MESSAGES } from '../constants/responseMessages.js';
 import { STATUS_CODES } from '../constants/statusCodeConstants.js';
 import { errorResponse } from '../helpers/errorHelper.js';
 import { fetchRequiredStretchData } from '../services/stretchService.js';
-import  logger  from "../utils/logger.js";
+import logger from "../utils/logger.js";
 import APIError from '../utils/apiError.js';
-import { getFileFromS3, uploadFileService, getAllImplementationModes } from '../services/uccService.js';
+import { getFileFromS3, insertTypeOfWork,uploadFileService, deleteFileService, getAllImplementationModes } from '../services/uccService.js';
 // import uccService from '../services/uccService.js';
 import { HEADER_CONSTANTS } from '../constants/headerConstant.js';
-
 
 /**
  * Method : 
@@ -114,9 +113,165 @@ export const uploadFile = async (req, res) => {
       data: savedFile,
     });
   } catch (error) {
-    return await errorResponse(req, res,error);
+    return await errorResponse(req, res, error);
   }
 };
+
+export const deleteFile = async (req, res) => {
+  try {
+    const { id } = req.body;
+    const deletedFile = await deleteFileService(id);
+    if (deletedFile?.alreadyDeleted) {
+      return res.status(STATUS_CODES.OK).json({
+        success: true,
+        message: RESPONSE_MESSAGES.SUCCESS.FILE_ALREADY_DELETED,
+      });
+    }
+    return res.status(STATUS_CODES.OK).json({
+      status: true,
+      message: RESPONSE_MESSAGES.SUCCESS.FILE_DELETED,
+      data: deletedFile
+    });
+  } catch (error) {
+    return await errorResponse(req, res, error);
+  }
+};
+
+
+export const getSchemes = async (req, res) => {
+  try {
+    const schemes = await prisma.scheme_master.findMany({
+      select: {
+        scheme_id: true,
+        scheme_name: true,
+        is_active:true
+
+        
+      },
+      orderBy: {
+        scheme_name: 'asc'
+      }
+    });
+
+    // If no records found
+    if (!schemes || schemes.length === 0) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        status: STATUS_CODES.NOT_FOUND,
+        message: 'No Scheme records found',
+        data: []
+      });
+    }
+
+    return res.status(STATUS_CODES.OK).json({
+      success: true,
+      status: STATUS_CODES.OK,
+      message: 'Scheme records retrieved successfully',
+      data: {schemes}
+    });
+
+  } catch (error) {
+    return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      status: STATUS_CODES.INTERNAL_SERVER_ERROR,
+      message: error.message || 'Internal server error',
+      data: []
+    });
+  }
+};
+
+
+export const getStates = async (req, res) => {
+  try {
+    const states = await prisma.ml_states.findMany({
+      select: {
+        state_id: true,
+        state_name: true
+        },
+      orderBy: {
+        state_name: 'asc'
+      }
+    });
+
+    // If no records found
+    if (!states || states.length === 0) {
+      return res.status(STATUS_CODES.OK).json({
+        success: false,
+        status: STATUS_CODES.OK,
+        message: 'No State records found',
+        data: []
+      });
+    }
+
+    return res.status(STATUS_CODES.OK).json({
+      success: true,
+      status: STATUS_CODES.OK,
+      message: 'State records retrieved successfully',
+      data: {states}
+    });
+
+  } catch (error) {
+    return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      status: STATUS_CODES.INTERNAL_SERVER_ERROR,
+      message: error.message || 'Internal server error',
+      data: []
+    });
+  }
+};
+
+export const getDistrict = async (req, res) => {
+try{
+  const { stateId } = req.query;
+  if (!stateId) {
+    return res.status(400).json({ error: "State ID is required" });
+   }
+
+   const districts = await prisma.districts_master.findMany({
+    select: {
+      district_id: true,
+      district_name: true,
+      //is_active:true
+    },
+    where: { state_id: Number(stateId) },
+  });
+
+  if (!districts || districts.length === 0) {
+    return res.status(STATUS_CODES.NOT_FOUND).json({
+      success: false,
+      status: STATUS_CODES.NOT_FOUND,
+      message: 'No district records found for this state',
+      data: []
+    });
+  }
+
+  return res.status(STATUS_CODES.OK).json({
+    success: true,
+    status: STATUS_CODES.OK,
+    message: 'District records retrieved successfully',
+    data: {districts}
+  });
+} catch (error) {
+  console.error("Error fetching districts:", error);
+  res.status(500).json({ error: "Internal Server Error" });
+}
+}
+
+export const insertTypeOfWorkController = async(req, res) => {
+  try {
+    logger.info("UccController :: method: insertTypeOfWorkController");
+    const userId = req.user?.user_id;
+    const reqBody = req.body;
+    const data = await insertTypeOfWork(req, userId, reqBody);
+
+    res.status(STATUS_CODES.CREATED).json({
+      status: true,
+      data
+    });
+  } catch (error) {
+    return await errorResponse(req, res, error);
+  }
+}
 
 /**
  * This function fetches the file based on the user ID, sets appropriate headers, 
@@ -129,7 +284,7 @@ export const uploadFile = async (req, res) => {
  */
 export const getFile = async (req, res) => {
   try {
-    logger.info("UccController :: method: getFile");
+    logger.info("UccController :: method: getFile.");
     const userId = req.user?.user_id;
     const response = await getFileFromS3(req, userId);
     res.setHeader(HEADER_CONSTANTS.CONTENT_TYPE, HEADER_CONSTANTS.KML_CONTENT_TYPE);
