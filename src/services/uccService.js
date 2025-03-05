@@ -21,6 +21,8 @@ export const uploadFileService = async (req, res) => {
     });
   });
 
+  console.log("req", req.file, "body", req.body);
+
   const user_id = req.user?.user_id;
   if (!user_id) {
     throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
@@ -277,3 +279,39 @@ export const getAllImplementationModes = async () => {
   const allModes = await prisma.ucc_implementation_mode.findMany();
   return allModes
 };
+export const insertContractDetails = async (req) => {
+  const { shortName, piu, implementationId, schemeId, contractName } = req.body;
+  console.log(req.body, "req.body")
+  const userId = req.user?.user_id;
+  if (!userId) {
+    throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
+  }
+  const result = await prisma.ucc_master.create({
+    data: {
+      short_name: shortName,
+      piu_id: piu,
+      implementation_mode_id: implementationId,
+      scheme_id: schemeId,
+      created_by: userId,
+      status: "Draft",
+      project_name: contractName
+    },
+    select: {
+      ucc_id: true
+    }
+  });
+
+  console.log(result, "result")
+
+  if (piu?.length) {
+    await prisma.ucc_piu.createMany({
+      data: piu.map((piu_id) => ({
+        ucc_id: result.ucc_id,
+        piu_id,
+        created_by: userId,
+      })),
+    });
+  }
+  return result;
+
+}
