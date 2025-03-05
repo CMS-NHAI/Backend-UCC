@@ -5,7 +5,8 @@ import { errorResponse } from '../helpers/errorHelper.js';
 import { fetchRequiredStretchData } from '../services/stretchService.js';
 import  logger  from "../utils/logger.js";
 import APIError from '../utils/apiError.js';
-import { getFileFromS3, uploadFileService } from '../services/uccService.js';
+import { getFileFromS3, uploadFileService, getAllImplementationModes } from '../services/uccService.js';
+// import uccService from '../services/uccService.js';
 import { HEADER_CONSTANTS } from '../constants/headerConstant.js';
 
 
@@ -137,4 +138,18 @@ export const getFile = async (req, res) => {
   } catch (error) {
     return await errorResponse(req, res, error);
   }
+};
+
+
+export const getImplementationModes = async (req, res, next) => {
+    try {
+        const modes = await getAllImplementationModes();
+        res.status(STATUS_CODES.OK).json({
+          status: true,
+          message: "",
+          data: modes,
+        });
+    } catch (error) {
+    return await errorResponse(req, res, error);
+    }
 };

@@ -117,3 +117,10 @@ export async function getFileFromS3(req, userId) {
     throw new APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, RESPONSE_MESSAGES.ERROR.ERROR_FILE_DOWNLOAD);
   }
 }
+
+
+export const getAllImplementationModes = async () => {
+  const allModes = await prisma.ucc_implementation_mode.findMany();
+  return allModes
+};
+

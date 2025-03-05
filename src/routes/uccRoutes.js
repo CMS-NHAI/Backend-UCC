@@ -1,6 +1,6 @@
 import express from "express";
 import { STRING_CONSTANT } from "../constants/stringConstant.js";
-import { getFile, getRequiredStretch, getTypeOfWork, getUcc,uploadFile } from "../controllers/uccController.js";
+import { getFile, getRequiredStretch, getTypeOfWork, getUcc,uploadFile, getImplementationModes } from "../controllers/uccController.js";
 import validate from "../middlewares/validate.js";
 import { validateToken } from "../middlewares/validateToken.js";
 import { getRequiredStretchParamsValidationSchema, getRequiredStretchQueryValidationSchema } from "../validations/uccValidation.js";
@@ -15,5 +15,6 @@ router.get(
 );
 router.post('/upload',validateToken, uploadFile);
 router.get('/getFile',validateToken, getFile);
+router.get('/getImplementationModes',validateToken, getImplementationModes);
 
 export default router;
