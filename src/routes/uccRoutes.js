@@ -4,6 +4,7 @@ import { getDistrict, getRequiredStretch,  getSchemes, getStates, getTypeOfWork,
 import validate from "../middlewares/validate.js";
 import { validateToken } from "../middlewares/validateToken.js";
 import { getRequiredStretchParamsValidationSchema, getRequiredStretchQueryValidationSchema, typeOfWorkRequestBodySchema } from "../validations/uccValidation.js";
+import { getChainageByUcc } from "../controllers/chainageController.js";
 const router = express.Router()
 
 router.get('/list', getUcc);
@@ -11,6 +12,8 @@ router.get('/type_of_work', validateToken, getTypeOfWork);
 router.get('/schemes', validateToken, getSchemes);
 router.get('/states', validateToken, getStates);
 router.get('/districtsViaStateId', validateToken, getDistrict);
+router.get('/getChainageByUcc', validateToken, getChainageByUcc);
+
 
 router.get(
     '/getRequiredStretch/:uccId',
