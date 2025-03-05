@@ -116,7 +116,7 @@ export async function getFileFromS3(req, userId) {
       method: req.method,
       time: new Date().toISOString(),
     });
-    throw new APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, RESPONSE_MESSAGES.ERROR.ERROR_FILE_DOWNLOAD);
+    throw err;
   }
 }
 

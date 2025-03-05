@@ -10,12 +10,12 @@ export const RESPONSE_MESSAGES = {
       USER_NOT_FOUND: "User not found",
       DOCUMENT_TYPE_NOT_FOUND : "Document type not provided",
       INVALID_FILE_TYPE:"Invalid file type. Only kml files are allowed.",
-      ERROR_FILE_DOWNLOAD: "Error occurred while downloading the file from S3 bucket"
+      ERROR_FILE_DOWNLOAD: "Error occurred while downloading the file from S3 bucket",
+      NO_UCC_FOUND: "No UCC mappings found for the given userId",
+      NO_STRETCH_FOUND: "No stretches found for the given UCCs"
     },
     SUCCESS: {
         FILE_UPLOADED: "File uploaded successfully",
         FILE_FETCHED: "File fetched successfully",
-        FILE_DELETED: "File deleted successfully",
-        FILE_ALREADY_DELETED:"File Already Deleted"
     },
   }
