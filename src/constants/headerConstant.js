@@ -10,4 +10,6 @@ export const HEADER_CONSTANTS = Object.freeze({
     CONTENT_TYPE: 'Content-Type',
     CONTENT_DISPOSITION: 'Content-Disposition',
     APPLICATION_JSON: 'application/json',
+    TRANSFER_ENCODING: 'Transfer-Encoding',
+    CHUNKED: 'chunked'
 });

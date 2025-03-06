@@ -43,3 +43,17 @@ export function getBlackSpotInsertData(blackSpot, typeOfWork, userId) {
         user_id: userId
     };
 }
+
+/**
+ * Extracts the phase name before any parentheses from the given phase string.
+ *
+ * This function uses a regular expression to find everything before any parentheses in a phase name, and returns the cleaned-up string.
+ * If there are no parentheses, the entire phase name is returned. It also trims any leading or trailing spaces.
+ *
+ * @param {string} phase - The phase name string which may contain parentheses.
+ * @returns {string} - The portion of the phase name before any parentheses, or the entire phase name if no parentheses are present.
+ */
+export function getPhaseNameBeforeParentheses(phase) {
+    const match = phase.match(/^(.*?)(\s*\(.*\))?$/); // Capture everything before the parentheses (if they exist)
+    return match ? match[1].trim() : phase;
+}

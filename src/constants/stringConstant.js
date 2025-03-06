@@ -2,7 +2,10 @@ export const STRING_CONSTANT = Object.freeze({
     SINGLE_TYPE: "single",
     MULTIPLE_TYPE: "multiple",
     QUERY: "query",
-    PARAMS: "params"
+    PARAMS: "params",
+    NHAI: "NHAI",
+    MORTH: "MORTH",
+    ALL: "ALL"
 });
 
 export const ALLOWED_TYPES_OF_WORK = Object.freeze([
