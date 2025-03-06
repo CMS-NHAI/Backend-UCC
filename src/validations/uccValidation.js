@@ -85,4 +85,6 @@ export const saveContractDetailsSchema = Joi.object({
   implementationId:Joi.number().required(),
   schemeId:Joi.number().required(),
   contractName:Joi.string().required(),
+  roId:Joi.number().required(),
+  stateId:Joi.number().required(),
 })
