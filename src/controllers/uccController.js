@@ -266,28 +266,6 @@ export const getFile = async (req, res) => {
   }
 };
 
-/**
- * Method : POST
- * Description : Upload supporting document
- * Params : files
-*/
-export const uploadSupportingDocument = async (req, res) => {
-  try {
-
-    const savedFiles = await uploadMultipleFileService(req, res);
-
-    return res.status(STATUS_CODES.OK).json({
-      success: true,
-      status: STATUS_CODES.OK,
-      message: RESPONSE_MESSAGES.SUCCESS.FILE_UPLOADED,
-      data: savedFiles,
-    });
-
-  } catch (error) {
-    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ success: false, status: STATUS_CODES.INTERNAL_SERVER_ERROR, message: error.message })
-  }
-};
-
 export const getImplementationModes = async (req,res, next) => {
     try {
         const modes = await getAllImplementationModes();
