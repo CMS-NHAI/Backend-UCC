@@ -52,7 +52,7 @@ export const uploadFileService = async (req, res) => {
         document_type: req.body.document_type,
         document_name: req.file.originalname,
         document_path: params.Key,
-        created_by: user_id,
+        created_by: user_id.toString(),
         status: "Draft",
       },
     }),
