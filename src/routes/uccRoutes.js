@@ -14,7 +14,7 @@ router.get('/type_of_work', validateToken, getTypeOfWork);
 router.get('/schemes', validateToken, getSchemes);
 router.get('/states', validateToken, getStates);
 router.get('/districtsViaStateId', validateToken, getDistrict);
-router.get('/getChainageByUcc', validateToken, getChainageByUcc);
+router.post('/getChainageByUcc', validateToken, getChainageByUcc);
 
 
 router.post('/upload',validateToken, uploadFile);
