@@ -59,16 +59,19 @@ export async function fetchMyStretches(req, res) {
     try {
         logger.info("UCC Controller :: getUserStretches");
         const userId = req.user?.user_id;
+        const page = parseInt(req.query.page) || 1;
+        const pageSize = parseInt(req.query.pageSize) || 10;
+        const projectType = req.query.projectType;
 
-        const data = await getUserStretches(req, userId);
+        const response = await getUserStretches(req, userId, page, pageSize, projectType);
 
         const readable = new Readable({
             read() {
                 this.push('{ "success": true, "data": [');
 
-                // Stream the large data in chunks
+                // Stream the data in chunks
                 let first = true;
-                data.forEach((item) => {
+                response.data.forEach((item) => {
                     if (first) {
                         first = false;
                     } else {
@@ -77,12 +80,15 @@ export async function fetchMyStretches(req, res) {
                     this.push(JSON.stringify(item));
                 });
 
-                this.push(']}');
+                this.push('], "pagination": ');
+                this.push(JSON.stringify(response.pagination));
+                this.push('}');
                 this.push(null);
             }
         });
 
         res.setHeader(HEADER_CONSTANTS.CONTENT_TYPE, HEADER_CONSTANTS.APPLICATION_JSON);
+        res.setHeader(HEADER_CONSTANTS.TRANSFER_ENCODING, HEADER_CONSTANTS.CHUNKED);
 
         // Pipe the data as a stream to the response
         readable.pipe(res);
