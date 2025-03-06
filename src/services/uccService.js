@@ -327,3 +327,131 @@ export const insertContractDetails = async (req) => {
   return result;
 
 }
+
+export async function getMultipleFileFromS3(req, userId) {
+  try {
+    logger.info("Fetching multiple document details from DB");
+
+    // Fetch all documents for the user that are not deleted
+    const fileRecords = await prisma.supporting_documents.findMany({
+      where: {
+        created_by: userId.toString(),
+        is_deleted: false,
+      },
+      select: {
+        document_id: true,
+        document_path: true,
+        document_name: true,
+      },
+    });
+
+    // If no files found, throw an error
+    if (!fileRecords || fileRecords.length === 0) {
+      throw new APIError(STATUS_CODES.NOT_FOUND, RESPONSE_MESSAGES.ERROR.NO_FILES_FOUND);
+    }
+
+    logger.info(`Found ${fileRecords.length} document(s).`);
+
+    // Process each file and fetch from S3
+    const files = await Promise.all(fileRecords.map(async (fileRecord) => {
+      try {
+        const fileKey = fileRecord.document_path;
+        const getObjectParams = {
+          Bucket: process.env.AWS_BUCKET_NAME,
+          Key: fileKey,
+        };
+
+        logger.info(`Fetching file with key: ${fileKey} from S3 bucket.`);
+
+        const command = new GetObjectCommand(getObjectParams);
+     
+        const data = await s3Client.send(command);
+
+        // Extract the file name from the file path
+        const fileName = fileKey.split('/').pop();
+        logger.info(`File ${fileName} fetched successfully from S3.`);
+
+        return { data: data.Body, fileName };
+      } catch (fileError) {
+        // Log error specific to each file
+        logger.error({
+          message: `Error fetching file: ${fileRecord.document_name}`,
+          error: fileError,
+          url: req.url,
+          method: req.method,
+          time: new Date().toISOString(),
+        });
+        // Return error information for that file
+        return { error: `Error fetching file: ${fileRecord.document_name}`, fileName: fileRecord.document_name };
+      }
+    }));
+
+    return files; // Return the array of files (or errors)
+  } catch (error) {
+    logger.error({
+      message: RESPONSE_MESSAGES.ERROR.REQUEST_PROCESSING_ERROR,
+      error: error,
+      url: req.url,
+      method: req.method,
+      time: new Date().toISOString(),
+    });
+    throw error;
+  }
+}
+
+export const deleteMultipleFileService = async (ids) => {
+   
+    if (!Array.isArray(ids) || ids.length === 0) {
+        throw new APIError(STATUS_CODES.BAD_REQUEST, 'No file IDs provided for deletion.');
+    }
+
+    const deletionResults = [];
+
+    for (const id of ids) {
+
+        try {
+            // Fetch the file record from the database
+            const result = await prisma.supporting_documents.findUnique({
+                where: { document_id: id },
+            });
+
+            if (!result) {
+                deletionResults.push({ id, error: 'File not found' });
+                continue;
+            }
+
+            if (result.is_deleted) {
+                deletionResults.push({ id, error: 'File already deleted' });
+                continue;
+            }
+
+            const params = {
+                Bucket: process.env.AWS_BUCKET_NAME,
+                Key: result.document_path,
+            };
+
+            // Delete the file from S3
+            const s3result = await s3Client.send(new DeleteObjectCommand(params));
+
+            if (s3result.$metadata.httpStatusCode !== 204) {
+                deletionResults.push({ id, error: 'Failed to delete file from S3' });
+                continue;
+            }
+
+        
+            const deletedResult = await prisma.supporting_documents.update({
+                where: { document_id: id },
+                data: { is_deleted: true },
+            });
+
+            deletionResults.push({ id, success: true });
+
+        } catch (error) {
+            deletionResults.push({ id, error: error.message || 'An unexpected error occurred' });
+        }
+    }
+
+    // Return the summary of deletion attempts
+    return deletionResults;
+};
+
