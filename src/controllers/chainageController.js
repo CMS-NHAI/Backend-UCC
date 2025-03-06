@@ -14,10 +14,19 @@ export const getChainageByUcc = async (req, res) => {
         if (!uccId) {
             return res.status(STATUS_CODES.NOT_FOUND).json({ success:false, status:STATUS_CODES.NOT_FOUND, message: "State ID is required" });
         }
-        const ChainageData = await fetchChainageData(req, uccId, reqBody);
-        console.log(ChainageData);
+        const response = await fetchChainageData(uccId);
+        //const ChainageData = await fetchChainageData(res, uccId);
+        console.log(response);
+        return res.status(response.status).json(response);
     }catch(error){
-        return await errorResponse(req, res, error);
+        console.log(error)
+        return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            status: STATUS_CODES.INTERNAL_SERVER_ERROR,
+            message: error.message || 'Internal server error',
+            data: []
+          });
+        //return await errorResponse(req, res, error);
     }
 
 }

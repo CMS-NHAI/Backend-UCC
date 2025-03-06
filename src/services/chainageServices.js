@@ -5,24 +5,41 @@ import APIError from "../utils/apiError.js";
 import logger from "../utils/logger.js";
 
 
-export async function fetchChainageData(req, uccId, reqBody) {
+export async function fetchChainageData(uccId) {
     try {
-           const result = await prisma.$queryRaw`
-            select "ID", "UCC", "ChainageID","X", "Y" from nhai_gis."Chainages" 
-            WHERE "ucc"=${uccId};
+        const result = await prisma.$queryRaw`
+            SELECT 
+                "ID",
+                "UCC", 
+                "ChainageID",
+                "X", 
+                "Y" 
+            FROM nhai_gis."Chainages" 
+            WHERE "UCC" = ${uccId};
         `;
 
-        return JSON.parse(result);
+         // Convert BigInt values to Numbers
+         const parsedResult = result.map(row => ({
+            ...row,
+            ID: typeof row.ID === "bigint" ? Number(row.ID) : row.ID,
+            ChainageID: typeof row.ChainageID === "bigint" ? Number(row.ChainageID) : row.ChainageID,
+            X: typeof row.X === "bigint" ? Number(row.X) : row.X,
+            Y: typeof row.Y === "bigint" ? Number(row.Y) : row.Y
+        }));
 
-    }catch(error){
-        logger.error({
-            message: RESPONSE_MESSAGES.ERROR.REQUEST_PROCESSING_ERROR,
-            error: error,
-            url: req.url,
-            method: req.method,
-            time: new Date().toISOString(),
-        });
-        throw APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, RESPONSE_MESSAGES.ERROR.STRETCH_DATA_ERROR)
+        return {
+            success: true,
+            status: 200,
+            data: parsedResult
+        };
 
-   }
+    } catch (error) {
+        console.error("Error fetching chainage data:", error);
+
+        return {
+            success: false,
+            status: STATUS_CODES.INTERNAL_SERVER_ERROR,
+            message: error.message || "Internal server error"
+        };
+    }
 }
