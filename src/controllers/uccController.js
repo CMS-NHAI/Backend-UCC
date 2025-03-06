@@ -3,6 +3,7 @@ import { RESPONSE_MESSAGES } from '../constants/responseMessages.js';
 import { STATUS_CODES } from '../constants/statusCodeConstants.js';
 import { errorResponse } from '../helpers/errorHelper.js';
 import APIError from '../utils/apiError.js';
+import { prisma } from '../config/prismaClient.js';
 import logger from "../utils/logger.js";
 import { getFileFromS3, insertTypeOfWork,uploadFileService, deleteFileService, getAllImplementationModes, uploadMultipleFileService } from '../services/uccService.js';
 // import uccService from '../services/uccService.js';
