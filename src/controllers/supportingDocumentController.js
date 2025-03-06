@@ -4,9 +4,8 @@ import { STATUS_CODES } from '../constants/statusCodeConstants.js';
 import { errorResponse } from '../helpers/errorHelper.js';
 import APIError from '../utils/apiError.js';
 import logger from "../utils/logger.js";
-import { getFileFromS3, deleteFileService, uploadMultipleFileService } from '../services/uccService.js';
+import { getMultipleFileFromS3, deleteMultipleFileService, uploadMultipleFileService } from '../services/uccService.js';
 // import uccService from '../services/uccService.js';
-
 
 /**
  * Method : POST
@@ -31,37 +30,60 @@ export const uploadSupportingDocument = async (req, res) => {
 };
 
 /**
- * This function fetches the file based on the user ID, sets appropriate headers, 
- * and pipes the file stream to the response.
- * 
- * @param {Object} req - The Express request object.
- * @param {Object} res - The Express response object.
- * 
- * @throws {APIError} - Throws an error if the file could not be retrieved or some other issue occurs.
+ * Method : @GET
+ * Description : @getSupportingDoc method use to get pdf.
  */
 export const getSupportingDoc = async (req, res) => {
     try {
-        res.send("testing =======>>>>>>")
         const userId = req.user?.user_id;
-        const response = await getFileFromS3(req, userId);
-        res.setHeader(HEADER_CONSTANTS.CONTENT_TYPE, HEADER_CONSTANTS.KML_CONTENT_TYPE);
-        res.setHeader(HEADER_CONSTANTS.CONTENT_DISPOSITION, `attachment; filename="${response.fileName}"`);
-        response.data.pipe(res);
+
+        if (!userId) {
+            throw new APIError(STATUS_CODES.BAD_REQUEST, "User not authenticated");
+        }
+
+        // Fetch multiple files from S3
+        const files = await getMultipleFileFromS3(req, userId);
+        // response.data.pipe(res);
+
+        // Ensure that files are returned
+        if (!files || files.length === 0) {
+            return res.status(404).json({ message: "No files found for this user" });
+        }
+
+        // Serve each file one by one
+        for (const file of files) {
+            if (file.error) {
+                console.error(`Error fetching file: ${file.fileName} - ${file.error}`);
+                continue;
+            }
+
+            if (file.data) {
+                res.setHeader(HEADER_CONSTANTS.CONTENT_TYPE, HEADER_CONSTANTS.PDF_CONTENT_TYPE);
+                res.setHeader(HEADER_CONSTANTS.CONTENT_DISPOSITION, `attachment; filename="${files.fileName}"`);
+                file.data.pipe(res);
+                return; // Return after sending the first file
+            } else {
+                return res.status(500).json({ message: `File data for ${file.fileName} is missing` });
+            }
+        }
+
     } catch (error) {
+        // Catch and return any errors that happen during the process
         return await errorResponse(req, res, error);
     }
 };
 
+
 /**
- * Method : Delete
- * Params : 
- * Description : 
+ * Method : @Delete
+ * Params : @id
+ * Description : @deleteSupportingDoc method use to delete the supporting document.
 */
 
 export const deleteSupportingDoc = async (req, res) => {
     try {
-        const { id } = req.body;
-        const deletedFile = await deleteFileService(id);
+        const { document_id } = req.body;
+        const deletedFile = await deleteMultipleFileService(document_id);
         if (deletedFile?.alreadyDeleted) {
             return res.status(STATUS_CODES.OK).json({
                 success: true,
@@ -69,7 +91,8 @@ export const deleteSupportingDoc = async (req, res) => {
             });
         }
         return res.status(STATUS_CODES.OK).json({
-            status: true,
+            success: true,
+            status:STATUS_CODES.OK,
             message: RESPONSE_MESSAGES.SUCCESS.FILE_DELETED,
             data: deletedFile
         });
