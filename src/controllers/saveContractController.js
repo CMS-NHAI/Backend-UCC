@@ -23,6 +23,7 @@ export const saveContractDetails =async(req,res)=>{
         data
       });
     } catch (error) {
+        console.log(error,"error")
       return await errorResponse(req, res, error);
     }
   }
