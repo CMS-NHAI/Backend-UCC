@@ -2,6 +2,7 @@ import {insertContractDetails } from '../services/uccService.js';
 import { RESPONSE_MESSAGES } from '../constants/responseMessages.js';
 import { STATUS_CODES } from '../constants/statusCodeConstants.js';
 import { errorResponse } from '../helpers/errorHelper.js';
+import logger from '../utils/logger.js';
 /**
  * Controller to save the contract details.
  * This function saves the contract data to the database.

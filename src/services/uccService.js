@@ -280,12 +280,23 @@ export const getAllImplementationModes = async () => {
   return allModes
 };
 export const insertContractDetails = async (req) => {
-  const { shortName, piu, implementationId, schemeId, contractName } = req.body;
-  console.log(req.body, "req.body")
+  const { shortName, piu, implementationId, schemeId, contractName,roId,stateId } = req.body;
   const userId = req.user?.user_id;
   if (!userId) {
     throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
   }
+
+  const existingContract = await prisma.ucc_master.findFirst({
+    where: {
+      created_by: userId,
+      status: "Draft",
+    },
+  });
+
+  if(existingContract) {
+    throw new APIError(STATUS_CODES.CONFLICT, RESPONSE_MESSAGES.ERROR.DRAFT_ALREADY_EXISTS);
+  }
+
   const result = await prisma.ucc_master.create({
     data: {
       short_name: shortName,
@@ -294,14 +305,15 @@ export const insertContractDetails = async (req) => {
       scheme_id: schemeId,
       created_by: userId,
       status: "Draft",
-      project_name: contractName
+      project_name: contractName,
+      ro_id:roId,
+      state_id:stateId
     },
     select: {
       ucc_id: true
     }
   });
 
-  console.log(result, "result")
 
   if (piu?.length) {
     await prisma.ucc_piu.createMany({
