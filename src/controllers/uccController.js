@@ -295,7 +295,7 @@ export const getImplementationModes = async (req,res, next) => {
           status: true,
           message: "",
           data: modes,
-        });
+        }); 
     } catch (error) {
     return await errorResponse(req, res, error);
     }
