@@ -5,7 +5,8 @@ export const STRING_CONSTANT = Object.freeze({
     PARAMS: "params",
     NHAI: "NHAI",
     MORTH: "MORTH",
-    ALL: "ALL"
+    ALL: "ALL",
+    RO: "RO-",
 });
 
 export const ALLOWED_TYPES_OF_WORK = Object.freeze([

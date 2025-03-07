@@ -289,3 +289,103 @@ export async function getUserStretches(req, userId, page, pageSize, projectType)
         throw error;
     }
 }
+
+/**
+ * Fetches the detailed information for a specific stretch based on its StretchID.
+ *
+ * This function retrieves data for a specific stretch
+ *
+ * @param {number} stretchId - The ID of the stretch whose details need to be fetched.
+ * @returns {Promise<Array>} - Returns an array containing detailed stretch data.
+ */
+async function stretchDetail(stretchId) {
+    return await prisma.$queryRaw`
+            SELECT 
+                s.id,
+                public.ST_Length(s.geom::public.geography) / 1000 AS length_km,
+                s."PhaseCode",
+                s."NH",
+                s."ProgramName",
+                s."ProjectName",
+                s."Phase",
+                s."Scheme",
+                s."StretchID",
+                s."CorridorID",
+                array_agg(DISTINCT c."CorridorName") AS corridor_names,
+                array_agg(DISTINCT ppm."description") AS phases
+            FROM 
+                "nhai_gis"."Stretches" s
+            LEFT JOIN 
+                "nhai_gis"."Corridors" c ON s."CorridorID" = c."CorridorID"
+            LEFT JOIN 
+                "tenant_nhai"."project_phase_master" ppm ON LPAD(s."PhaseCode", 2, '0') = LPAD(ppm."phase_code", 2, '0')
+            WHERE 
+                s."StretchID" = ${stretchId}
+            GROUP BY 
+                s.id, s.geom, s."PhaseCode", s."CorridorCode", s."StretchCode", s."NH", s."ProgramName", s."ProjectName",
+                s."Phase", s."Scheme", s."StretchID", s."CorridorID"
+        `;
+}
+
+/**
+ * Fetches the stretch details along with the PIU (Project Implementation Unit) and RO (Region Office) details.
+ *
+ * This function calls `stretchDetail` to fetch the basic stretch details, and then retrieves PIU and RO
+ * information associated with the stretch ID from the `UCCSegments` table. The final response includes
+ * the stretch's data, corridor names, phases, and PIU and RO values.
+ *
+ * @param {Object} req - The request object containing information about the API request.
+ * @param {number} stretchId - The ID of the stretch for which details are required.
+ * @returns {Promise<Object>} - Returns the detailed stretch data including the PIU and RO information.
+ * @throws {APIError} - Throws an error if no stretch data is found or if there's an issue fetching the details.
+ */
+export async function getStretchDetails(req, stretchId) {
+    try {
+        logger.info("Fetching stretch detail associated with the Stretch IDs.");
+
+        const stretchDetails = await stretchDetail(stretchId);
+        if (stretchDetails.length === 0) {
+            throw new APIError(STATUS_CODES.NOT_FOUND, RESPONSE_MESSAGES.ERROR.NO_STRETCH_FOUND_FOR_ID);
+        }
+        const stretchData = stretchDetails[0];
+
+        logger.info("Fetching Stretches PIU and RO details.");
+        const uccSegments = await prisma.UCCSegments.findMany({
+            where: {
+                StretchID: stretchId,
+            },
+            select: {
+                StretchID: true,
+                PIU: true,
+                RO: true,
+                UCC: true,
+            },
+        });;
+
+        if (uccSegments.length === 0) {
+            throw new APIError(STATUS_CODES.NOT_FOUND, RESPONSE_MESSAGES.ERROR.NO_STRETCH_FOUND_FOR_ID);
+        }
+        logger.info("Stretche PIU and RO details fetched successfully.");
+
+        const stretchPiuRos = { piu: [], ro: [] };
+
+        uccSegments.forEach((segment) => {
+            const ro = segment.RO;
+            stretchPiuRos.piu.push(segment.PIU); // Append the segment.PIU value
+            stretchPiuRos.ro.push(ro ? ro.split(STRING_CONSTANT.RO)[1] : ro); // Split and append to the ro array
+        });
+
+        stretchData.piu = stretchPiuRos.piu.join();
+        stretchData.ro = stretchPiuRos.ro.join();
+        return stretchData;
+    } catch (error) {
+        logger.error({
+            message: RESPONSE_MESSAGES.ERROR.REQUEST_PROCESSING_ERROR,
+            error: error,
+            url: req.url,
+            method: req.method,
+            time: new Date().toISOString(),
+        });
+        throw error;
+    }
+}

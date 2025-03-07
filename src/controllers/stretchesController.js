@@ -5,7 +5,7 @@
 import { Readable } from "stream";
 import { STATUS_CODES } from "../constants/statusCodeConstants.js";
 import { errorResponse } from "../helpers/errorHelper.js";
-import { fetchRequiredStretchData, getUserStretches } from "../services/stretchService.js";
+import { fetchRequiredStretchData, getStretchDetails, getUserStretches } from "../services/stretchService.js";
 import logger from "../utils/logger.js";
 import { HEADER_CONSTANTS } from "../constants/headerConstant.js";
 
@@ -30,7 +30,7 @@ export async function getRequiredStretch(req, res) {
         res.status(STATUS_CODES.OK).json({
             success: true,
             data
-        })
+        });
     } catch (error) {
         await errorResponse(req, res, error);
     }
@@ -92,6 +92,30 @@ export async function fetchMyStretches(req, res) {
 
         // Pipe the data as a stream to the response
         readable.pipe(res);
+    } catch (error) {
+        await errorResponse(req, res, error);
+    }
+}
+
+/**
+ * Fetches the details of a stretch based on its StretchID and returns the data to the client.
+ *
+ * This function handles the API request to fetch the stretch details. It retrieves the stretch
+ * data using the `getStretchDetails` function, which includes geographical data, corridor names,
+ * phase information, and associated PIU/RO data. If an error occurs, it returns an appropriate response.
+ *
+ * @param {Object} req - The request object containing the stretch ID in the parameters.
+ * @param {Object} res - The response object used to send back the stretch details or error response.
+ * @throws {APIError} - If an error occurs while fetching the stretch details, it will be passed to the error handler.
+ */
+export async function fetchStretchDetails(req, res) {
+    try {
+        const stretchId = req.params?.stretchId;
+        const data = await getStretchDetails(req, stretchId);
+        res.status(STATUS_CODES.OK).json({
+            success: true,
+            data
+        });
     } catch (error) {
         await errorResponse(req, res, error);
     }
