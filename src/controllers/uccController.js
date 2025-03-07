@@ -153,6 +153,55 @@ export const getSchemes = async (req, res) => {
   }
 };
 
+
+export const getRos = async (req, res) => {
+  try {
+    const ros = await prisma.or_office_master.findMany({
+      select: {
+        office_id: true,
+        office_name: true,
+        office_type:true,
+        address_line1:true,
+        address_line2:true,
+        city:true,
+        state:true,
+        postal_code:true,
+        contact_number:true,
+        email:true,
+        is_active: true
+      },
+      orderBy: {
+        office_name: 'asc'
+      }
+    });
+
+    // If no records found
+    if (!ros || ros.length === 0) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        status: STATUS_CODES.NOT_FOUND,
+        message: 'No RO records found',
+        data: []
+      });
+    }
+
+    return res.status(STATUS_CODES.OK).json({
+      success: true,
+      status: STATUS_CODES.OK,
+      message: 'RO records retrieved successfully',
+      data: { ros }
+    });
+
+  } catch (error) {
+    return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      status: STATUS_CODES.INTERNAL_SERVER_ERROR,
+      message: error.message || 'Internal server error',
+      data: []
+    });
+  }
+};
+
 export const getStates = async (req, res) => {
   try {
     const states = await prisma.ml_states.findMany({
