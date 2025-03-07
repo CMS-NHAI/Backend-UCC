@@ -170,6 +170,7 @@ export const getRos = async (req, res) => {
         email:true,
         is_active: true
       },
+      where: { office_type: "RO" },
       orderBy: {
         office_name: 'asc'
       }
