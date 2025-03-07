@@ -112,13 +112,27 @@ async function nhaiStretchDetails(page, pageSize, stretchIds) {
 
 
     logger.info("Stretches data fetched successfully. ");
+
+    const uccCounts = await prisma.UCCSegments.groupBy({
+        by: ['StretchID'],
+        _count: {
+            UCC: true,
+        },
+        where: {
+            StretchID: { in: stretchIds },
+        },
+    });
+
     const data = stretches.map((item) => {
         const uniquePhases = Array.from(new Set(item.phases.map(getPhaseNameBeforeParentheses)));
+        const uccCount = uccCounts.find(count => count.StretchID === item.StretchID);
 
         return {
             ...item,
             geojson: JSON.parse(item.geojson),
             phases: uniquePhases,
+            ucc_count: uccCount ? uccCount._count.UCC : 0,
+            type: STRING_CONSTANT.NHAI
         }
     });
 
@@ -274,8 +288,7 @@ export async function getUserStretches(req, userId, page, pageSize, projectType)
         if (stretchIds.length === 0) {
             throw new APIError(STATUS_CODES.NOT_FOUND, RESPONSE_MESSAGES.ERROR.NO_STRETCH_FOUND);
         }
-        logger.info("Stretch IDs fetched successfully.")
-        logger.info("Fetching stretches data.");
+        logger.info("Stretch IDs fetched successfully.");
 
         return projectDetails(page, pageSize, projectType, stretchIds);
     } catch (error) {
@@ -299,10 +312,11 @@ export async function getUserStretches(req, userId, page, pageSize, projectType)
  * @returns {Promise<Array>} - Returns an array containing detailed stretch data.
  */
 async function stretchDetail(stretchId) {
-    return await prisma.$queryRaw`
+    const stretchData = await prisma.$queryRaw`
             SELECT 
                 s.id,
                 public.ST_Length(s.geom::public.geography) / 1000 AS length_km,
+                public.ST_AsGeoJSON(s.geom) AS geojson,
                 s."PhaseCode",
                 s."NH",
                 s."ProgramName",
@@ -325,6 +339,30 @@ async function stretchDetail(stretchId) {
                 s.id, s.geom, s."PhaseCode", s."CorridorCode", s."StretchCode", s."NH", s."ProgramName", s."ProjectName",
                 s."Phase", s."Scheme", s."StretchID", s."CorridorID"
         `;
+
+
+    const uccCounts = await prisma.UCCSegments.groupBy({
+        by: ['StretchID'],
+        _count: {
+            UCC: true,
+        },
+        where: {
+            StretchID: stretchId ,
+        },
+    });
+
+    return stretchData.map((item) => {
+        const uniquePhases = Array.from(new Set(item.phases.map(getPhaseNameBeforeParentheses)));
+        const uccCount = uccCounts.find(count => count.StretchID === item.StretchID);
+
+        return {
+            ...item,
+            geojson: JSON.parse(item.geojson),
+            phases: uniquePhases,
+            ucc_count: uccCount ? uccCount._count.UCC : 0,
+            type: STRING_CONSTANT.NHAI
+        }
+    });
 }
 
 /**
