@@ -223,7 +223,7 @@ export const getPIUByROId = async (req, res) => {
         email:true,
         is_active: true
       },
-      where: { parent_id: ROId},
+      where: { parent_id: Number(ROId)},
       orderBy: {
         office_name: 'asc'
       }
