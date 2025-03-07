@@ -14,7 +14,8 @@ export const RESPONSE_MESSAGES = {
       INVALID_PDF_FILE_TYPE:"Invalid file type. Only PDF files are allowed.",
       NO_UCC_FOUND: "No UCC mappings found for the given userId",
       NO_STRETCH_FOUND: "No stretches found for the given UCCs",
-      NO_STRETCH_FOUND_FOR_ID: "No stretches found for the given Stretch ID"
+      NO_STRETCH_FOUND_FOR_ID: "No stretches found for the given Stretch ID",
+      DRAFT_ALREADY_EXISTS:"A draft contract already exists for this user."
     },
     SUCCESS: {
         FILE_UPLOADED: "File uploaded successfully",

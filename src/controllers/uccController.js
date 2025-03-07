@@ -3,6 +3,7 @@ import { RESPONSE_MESSAGES } from '../constants/responseMessages.js';
 import { STATUS_CODES } from '../constants/statusCodeConstants.js';
 import { errorResponse } from '../helpers/errorHelper.js';
 import APIError from '../utils/apiError.js';
+import { prisma } from '../config/prismaClient.js';
 import logger from "../utils/logger.js";
 import { getFileFromS3, insertTypeOfWork,uploadFileService, deleteFileService, getAllImplementationModes, uploadMultipleFileService } from '../services/uccService.js';
 // import uccService from '../services/uccService.js';
@@ -152,6 +153,108 @@ export const getSchemes = async (req, res) => {
   }
 };
 
+
+export const getRos = async (req, res) => {
+  try {
+    const ros = await prisma.or_office_master.findMany({
+      select: {
+        office_id: true,
+        office_name: true,
+        office_type:true,
+        address_line1:true,
+        address_line2:true,
+        city:true,
+        state:true,
+        postal_code:true,
+        contact_number:true,
+        email:true,
+        is_active: true
+      },
+      where: { office_type: "RO" },
+      orderBy: {
+        office_name: 'asc'
+      }
+    });
+
+    // If no records found
+    if (!ros || ros.length === 0) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        status: STATUS_CODES.NOT_FOUND,
+        message: 'No RO records found',
+        data: []
+      });
+    }
+
+    return res.status(STATUS_CODES.OK).json({
+      success: true,
+      status: STATUS_CODES.OK,
+      message: 'RO records retrieved successfully',
+      data: { ros }
+    });
+
+  } catch (error) {
+    return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      status: STATUS_CODES.INTERNAL_SERVER_ERROR,
+      message: error.message || 'Internal server error',
+      data: []
+    });
+  }
+};
+
+export const getPIUByROId = async (req, res) => {
+  try {
+     const { ROId } = req.query;
+    if (!ROId) {
+      return res.status(400).json({ success: false, status: STATUS_CODES.NOT_FOUND,message: "RO ID is required" });
+    }  
+    const pius = await prisma.or_office_master.findMany({
+      select: {
+        office_id: true,
+        office_name: true,
+        office_type:true,
+        address_line1:true,
+        address_line2:true,
+        city:true,
+        state:true,
+        postal_code:true,
+        contact_number:true,
+        email:true,
+        is_active: true
+      },
+      where: { parent_id: Number(ROId)},
+      orderBy: {
+        office_name: 'asc'
+      }
+    });
+
+    // If no records found
+    if (!pius || pius.length === 0) {
+      return res.status(STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        status: STATUS_CODES.NOT_FOUND,
+        message: 'No PIU records found',
+        data: []
+      });
+    }
+
+    return res.status(STATUS_CODES.OK).json({
+      success: true,
+      status: STATUS_CODES.OK,
+      message: 'PIU records retrieved successfully',
+      data: { pius }
+    });
+
+  } catch (error) {
+    return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      status: STATUS_CODES.INTERNAL_SERVER_ERROR,
+      message: error.message || 'Internal server error',
+      data: []
+    });
+  }
+};
 export const getStates = async (req, res) => {
   try {
     const states = await prisma.ml_states.findMany({
@@ -263,28 +366,6 @@ export const getFile = async (req, res) => {
     response.data.pipe(res);
   } catch (error) {
     return await errorResponse(req, res, error);
-  }
-};
-
-/**
- * Method : POST
- * Description : Upload supporting document
- * Params : files
-*/
-export const uploadSupportingDocument = async (req, res) => {
-  try {
-
-    const savedFiles = await uploadMultipleFileService(req, res);
-
-    return res.status(STATUS_CODES.OK).json({
-      success: true,
-      status: STATUS_CODES.OK,
-      message: RESPONSE_MESSAGES.SUCCESS.FILE_UPLOADED,
-      data: savedFiles,
-    });
-
-  } catch (error) {
-    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({ success: false, status: STATUS_CODES.INTERNAL_SERVER_ERROR, message: error.message })
   }
 };
 
