@@ -3,7 +3,7 @@ import { saveContractDetails } from "../controllers/saveContractController.js";
 import validate from "../middlewares/validate.js";
 import { validateToken } from "../middlewares/validateToken.js";
 import { STRING_CONSTANT } from "../constants/stringConstant.js";
-import { getDistrict, getSchemes, getStates, getTypeOfWork, getUcc,insertTypeOfWorkController,uploadFile,deleteFile,getFile,getImplementationModes } from "../controllers/uccController.js";
+import { getDistrict, getSchemes, getStates, getTypeOfWork, getUcc,insertTypeOfWorkController,uploadFile,deleteFile,getFile,getImplementationModes, getRos } from "../controllers/uccController.js";
 import { getRequiredStretchParamsValidationSchema, getRequiredStretchQueryValidationSchema, typeOfWorkRequestBodySchema,saveContractDetailsSchema } from "../validations/uccValidation.js";
 import { getChainageByUcc } from "../controllers/chainageController.js";
 
@@ -15,6 +15,7 @@ router.get('/schemes', validateToken, getSchemes);
 router.get('/states', validateToken, getStates);
 router.get('/districtsViaStateId', validateToken, getDistrict);
 router.post('/getChainageByUcc', validateToken, getChainageByUcc);
+router.get('/ROs', validateToken, getRos);
 
 
 router.post('/upload',validateToken, uploadFile);
