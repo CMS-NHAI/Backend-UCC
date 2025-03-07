@@ -395,11 +395,6 @@ export const getuserUccDetails = async (req, res) => {
     });
 
   } catch (error) {
-    return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      status: STATUS_CODES.INTERNAL_SERVER_ERROR,
-      message: error.message || 'Internal server error',
-      data: []
-    });
+    return await errorResponse(req, res, error);
   }
 }

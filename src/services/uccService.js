@@ -467,7 +467,6 @@ export const getcontractListService = async (req) => {
       StretchID: {
         in: stretchIds,
       },
-
         ...(piu?.length ? { PIU: { in: piu } } : {}),
         ...(ro?.length ? { RO: { in: ro } } : {}),
         ...(program?.length ? { ProgramName: { in: program } } : {}),
@@ -476,6 +475,7 @@ export const getcontractListService = async (req) => {
         ...(scheme?.length ? { Scheme: { in: scheme } } : {}),
         ...(corridor?.length ? { CorridorID: { in: corridor } } : {}),
     },
+    distinct: ['UCC'],
     select: {
       TypeofWork: true,
       StretchID: true,
