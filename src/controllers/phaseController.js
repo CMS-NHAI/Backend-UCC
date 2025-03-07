@@ -3,19 +3,19 @@ import { STATUS_CODES } from '../constants/statusCodeConstants.js';
 import { prisma } from '../config/prismaClient.js';
 import logger from "../utils/logger.js";
 
-export const getProgram = async (req, res) => {
+export const getPhase = async (req, res) => {
     try {
-        const programData = await prisma.program_master.findMany({
+        const phaseData = await prisma.project_phase_master.findMany({
             orderBy: {
                 created_at: 'desc',
               },
         });
 
-        if (!programData || programData.length === 0) {
+        if (!phaseData || phaseData.length === 0) {
             return res.status(STATUS_CODES.OK).json({
                 success: false,
                 status: STATUS_CODES.OK,
-                message: 'No program records found',
+                message: 'No phase records found',
                 data: []
             });
         }
@@ -23,8 +23,8 @@ export const getProgram = async (req, res) => {
         return res.status(STATUS_CODES.OK).json({
             success: true,
             status: STATUS_CODES.OK,
-            message: 'Program records retrieved successfully',
-            data: programData
+            message: 'Phase records retrieved successfully',
+            data: phaseData
         });
 
     } catch (error) {
@@ -36,4 +36,3 @@ export const getProgram = async (req, res) => {
         });
     }
 };
-

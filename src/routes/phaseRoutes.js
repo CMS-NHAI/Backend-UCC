@@ -1,8 +1,9 @@
 import express from "express";
 const router = express.Router()
-import { getProgram } from "../controllers/programController.js";
+import { getPhase } from "../controllers/phaseController.js";
 import { validateToken } from "../middlewares/validateToken.js";
 
-router.get('/program/list', validateToken, getProgram);
+router.get('/phase/list', validateToken, getPhase);
+
 
 export default router;
