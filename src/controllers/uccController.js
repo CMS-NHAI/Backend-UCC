@@ -169,8 +169,6 @@ export const getRos = async (req, res) => {
         contact_number:true,
         email:true,
         is_active: true
-
-
       },
       orderBy: {
         office_name: 'asc'
