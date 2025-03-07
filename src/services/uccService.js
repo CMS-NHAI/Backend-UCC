@@ -8,6 +8,7 @@ import APIError from "../utils/apiError.js";
 import logger from "../utils/logger.js";
 import { getBlackSpotInsertData, getSegmentInsertData } from "../utils/uccUtil.js";
 import { ALLOWED_TYPES_OF_WORK } from "../constants/stringConstant.js";
+import { STATUS } from "../constants/appConstants.js";
 
 export const uploadFileService = async (req, res) => {
   await new Promise((resolve, reject) => {
@@ -20,8 +21,6 @@ export const uploadFileService = async (req, res) => {
       resolve();
     });
   });
-
-  console.log("req", req.file, "body", req.body);
 
   const user_id = req.user?.user_id;
   if (!user_id) {
@@ -107,7 +106,7 @@ export const uploadMultipleFileService = async (req, res) => {
     if (!uploadFileResult || uploadFileResult.$metadata.httpStatusCode !== STATUS_CODES.OK) {
 
       throw new APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, RESPONSE_MESSAGES.ERROR.FILE_UPLOAD_FAILED);
-      
+
     }
 
     const savedFile = await prisma.supporting_documents.create({
@@ -280,7 +279,7 @@ export const getAllImplementationModes = async () => {
   return allModes
 };
 export const insertContractDetails = async (req) => {
-  const { shortName, piu, implementationId, schemeId, contractName,roId,stateId } = req.body;
+  const { shortName, piu, implementationId, schemeId, contractName, roId, stateId, contractLength } = req.body;
   const userId = req.user?.user_id;
   if (!userId) {
     throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
@@ -289,11 +288,11 @@ export const insertContractDetails = async (req) => {
   const existingContract = await prisma.ucc_master.findFirst({
     where: {
       created_by: userId,
-      status: "Draft",
+      status: STATUS.DRAFT,
     },
   });
 
-  if(existingContract) {
+  if (existingContract) {
     throw new APIError(STATUS_CODES.CONFLICT, RESPONSE_MESSAGES.ERROR.DRAFT_ALREADY_EXISTS);
   }
 
@@ -304,10 +303,11 @@ export const insertContractDetails = async (req) => {
       implementation_mode_id: implementationId,
       scheme_id: schemeId,
       created_by: userId,
-      status: "Draft",
+      status: STATUS.DRAFT,
       project_name: contractName,
-      ro_id:roId,
-      state_id:stateId
+      ro_id: roId,
+      state_id: stateId,
+      contract_length: contractLength
     },
     select: {
       ucc_id: true
@@ -364,7 +364,7 @@ export async function getMultipleFileFromS3(req, userId) {
         logger.info(`Fetching file with key: ${fileKey} from S3 bucket.`);
 
         const command = new GetObjectCommand(getObjectParams);
-     
+
         const data = await s3Client.send(command);
 
         // Extract the file name from the file path
@@ -400,58 +400,97 @@ export async function getMultipleFileFromS3(req, userId) {
 }
 
 export const deleteMultipleFileService = async (ids) => {
-   
-    if (!Array.isArray(ids) || ids.length === 0) {
-        throw new APIError(STATUS_CODES.BAD_REQUEST, 'No file IDs provided for deletion.');
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    throw new APIError(STATUS_CODES.BAD_REQUEST, 'No file IDs provided for deletion.');
+  }
+
+  const deletionResults = [];
+
+  for (const id of ids) {
+
+    try {
+      // Fetch the file record from the database
+      const result = await prisma.supporting_documents.findUnique({
+        where: { document_id: id },
+      });
+
+      if (!result) {
+        deletionResults.push({ id, error: 'File not found' });
+        continue;
+      }
+
+      if (result.is_deleted) {
+        deletionResults.push({ id, error: 'File already deleted' });
+        continue;
+      }
+
+      const params = {
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: result.document_path,
+      };
+
+      // Delete the file from S3
+      const s3result = await s3Client.send(new DeleteObjectCommand(params));
+
+      if (s3result.$metadata.httpStatusCode !== 204) {
+        deletionResults.push({ id, error: 'Failed to delete file from S3' });
+        continue;
+      }
+
+
+      const deletedResult = await prisma.supporting_documents.update({
+        where: { document_id: id },
+        data: { is_deleted: true },
+      });
+
+      deletionResults.push({ id, success: true });
+
+    } catch (error) {
+      deletionResults.push({ id, error: error.message || 'An unexpected error occurred' });
     }
+  }
 
-    const deletionResults = [];
-
-    for (const id of ids) {
-
-        try {
-            // Fetch the file record from the database
-            const result = await prisma.supporting_documents.findUnique({
-                where: { document_id: id },
-            });
-
-            if (!result) {
-                deletionResults.push({ id, error: 'File not found' });
-                continue;
-            }
-
-            if (result.is_deleted) {
-                deletionResults.push({ id, error: 'File already deleted' });
-                continue;
-            }
-
-            const params = {
-                Bucket: process.env.AWS_BUCKET_NAME,
-                Key: result.document_path,
-            };
-
-            // Delete the file from S3
-            const s3result = await s3Client.send(new DeleteObjectCommand(params));
-
-            if (s3result.$metadata.httpStatusCode !== 204) {
-                deletionResults.push({ id, error: 'Failed to delete file from S3' });
-                continue;
-            }
-
-        
-            const deletedResult = await prisma.supporting_documents.update({
-                where: { document_id: id },
-                data: { is_deleted: true },
-            });
-
-            deletionResults.push({ id, success: true });
-
-        } catch (error) {
-            deletionResults.push({ id, error: error.message || 'An unexpected error occurred' });
-        }
-    }
-
-    // Return the summary of deletion attempts
-    return deletionResults;
+  // Return the summary of deletion attempts
+  return deletionResults;
 };
 
+export const getcontractListService = async (req) => {
+  const {stretchIds,piu,ro,program,phase,typeOfWork,scheme,corridor} = req.body;
+  const userId = req.user?.user_id;
+  if (!userId) {
+    throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
+  }
+
+  const result = await prisma.UCCSegments.findMany({
+    where: {
+      StretchID: {
+        in: stretchIds,
+      },
+
+        ...(piu?.length ? { PIU: { in: piu } } : {}),
+        ...(ro?.length ? { RO: { in: ro } } : {}),
+        ...(program?.length ? { ProgramName: { in: program } } : {}),
+        ...(phase?.length ? { PhaseCode: { in: phase } } : {}),
+        ...(typeOfWork?.length ? { TypeofWork: { in: typeOfWork } } : {}),
+        ...(scheme?.length ? { Scheme: { in: scheme } } : {}),
+        ...(corridor?.length ? { CorridorID: { in: corridor } } : {}),
+    },
+    select: {
+      TypeofWork: true,
+      StretchID: true,
+      ProjectName: true,
+      PIU: true,
+      UCC: true,
+      TotalLength: true,
+      RevisedLength: true,
+    },
+  });
+
+  const finalContractList = await result.map((item) => {
+  item.status = "awarded";
+  return item
+  });
+  return finalContractList;
+
+}
