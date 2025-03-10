@@ -485,7 +485,7 @@ export const deleteMultipleFileService = async (ids) => {
       };
 
       // Delete the file from S3
-      const s3result = await s3Client.send(new DeleteObjectCommand(params));
+     const s3result = await s3Client.send(new DeleteObjectCommand(params));
 
       if (s3result.$metadata.httpStatusCode !== 204) {
         deletionResults.push({ id, error: 'Failed to delete file from S3' });
@@ -614,4 +614,98 @@ export const updateContractDetailService = async (req) => {
   return result;
 
 }
+
+
+export const basicDetailsOnReviewPage = async () => {
+  try {
+    const uccRecord = await prisma.ucc_master.findUnique({
+      where: { ucc_id: 1 },
+      select: {
+        contract_name: true,
+        short_name: true,
+        implementation_mode: true,
+        contract_length: true,
+        created_by: true,
+        piu_id: true, // This comes directly from ucc_master
+        ml_states: {
+          select: {
+            state_name: true,
+          },
+        },
+        scheme_master: {
+          select: {
+            scheme_name: true,
+          },
+        },
+        or_office_master: {
+          select: {
+            office_name: true,
+          },
+        },
+        ucc_implementation_mode: {
+          select: {
+            mode_name: true,
+          },
+        },
+      },
+    });
+
+    if (!uccRecord) {
+      return {
+        status: false,
+        message: "UCC record not found",
+        data: null,
+      };
+    }
+
+    // Get piu_id directly from uccRecord
+    const piuIds = uccRecord.piu_id || [];
+
+    // Fetch details of these piu_ids from or_office_master
+    const piuDetails = await prisma.or_office_master.findMany({
+      where: {
+        office_id: { in: piuIds },
+      },
+      select: {
+        office_id: true,
+        office_name: true,
+      },
+    });
+
+    const type_of_work = await prisma.ucc_type_of_work_location.findMany({
+      where: {
+        user_id: uccRecord.created_by,
+      },
+      select: {
+        type_of_issue: true,
+        start_distance_km: true,
+        start_distance_metre: true,
+        end_distance_km: true,
+        end_distance_metre: true,
+        start_distance_km: true,
+      },
+    });
+   
+    const data = {
+      contract_name: uccRecord.contract_name,
+      short_name: uccRecord.short_name,
+      implementation_mode: uccRecord.implementation_mode,
+      contract_length: uccRecord.contract_length,
+      piu_details: piuDetails, // Details of each piu_id
+      ml_states: uccRecord.ml_states.state_name.scheme_name,
+      scheme_master: uccRecord.scheme_master.scheme_name,
+      or_office_master: uccRecord.or_office_master.office_name,
+      type_of_work: type_of_work,
+      // supporting_documents: supporting_documents
+    };
+    return data;
+  } catch (error) {
+    console.error("Error fetching UCC record:", error);
+    return {
+      status: false,
+      message: "An error occurred while fetching UCC record",
+      data: null,
+    };
+  }
+};
 
