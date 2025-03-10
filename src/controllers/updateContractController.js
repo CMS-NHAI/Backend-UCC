@@ -1,4 +1,4 @@
-import { updateContractDetailService } from '../services/uccService.js';
+import { updateContractDetailService, updateTypeOfWorkService } from '../services/contractService.js';
 import { RESPONSE_MESSAGES } from '../constants/responseMessages.js';
 import { STATUS_CODES } from '../constants/statusCodeConstants.js';
 import { errorResponse } from '../helpers/errorHelper.js';
@@ -27,3 +27,19 @@ export const updateContractDetails = async (req, res) => {
         return await errorResponse(req, res, error);
     }
 }
+
+export const updateTypeOfWork = async (req, res) => {
+    try {
+    
+      const userId = req.user?.user_id;
+      const reqBody = req.body;
+      const data = await updateTypeOfWorkService(req, userId, reqBody);
+  
+      res.status(STATUS_CODES.CREATED).json({
+        status: true,
+        data
+      });
+    } catch (error) {
+      return await errorResponse(req, res, error);
+    }
+  }
