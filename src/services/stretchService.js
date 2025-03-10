@@ -256,38 +256,8 @@ export async function getUserStretches(req, userId, page, pageSize, projectType)
         }
 
         logger.info("Fetching all UCC IDs associated with the user.");
-        // Fetch all UCC IDs associated with the user
-        const userMappings = await prisma.ucc_user_mappings.findMany({
-            where: {
-                user_id: Number(userId),
-            },
-            select: {
-                ucc_id: true,
-            },
-        });
 
-        if (userMappings.length === 0) {
-            throw new APIError(STATUS_CODES.NOT_FOUND, RESPONSE_MESSAGES.ERROR.NO_UCC_FOUND);
-        }
-        logger.info("UCC ids fetched successfully.");
-        const uccIds = userMappings.map(mapping => mapping.ucc_id);
-
-        logger.info("Fetching all stretch IDs associated with the UCC IDs.");
-        // Fetch all stretchIds based on UCC IDs
-        const uccSegments = await prisma.uCCSegments.findMany({
-            where: {
-                UCC: { in: uccIds },
-            },
-            select: {
-                StretchID: true,
-            },
-        });
-
-        const stretchIds = uccSegments.map(segment => segment.StretchID);
-
-        if (stretchIds.length === 0) {
-            throw new APIError(STATUS_CODES.NOT_FOUND, RESPONSE_MESSAGES.ERROR.NO_STRETCH_FOUND);
-        }
+        const stretchIds = await getUserStretchIds(userId);
         logger.info("Stretch IDs fetched successfully.");
 
         return projectDetails(page, pageSize, projectType, stretchIds);
@@ -347,7 +317,7 @@ async function stretchDetail(stretchId) {
             UCC: true,
         },
         where: {
-            StretchID: stretchId ,
+            StretchID: stretchId,
         },
     });
 
@@ -424,6 +394,80 @@ export async function getStretchDetails(req, stretchId) {
             method: req.method,
             time: new Date().toISOString(),
         });
+        throw error;
+    }
+}
+
+async function getUserStretchIds(userId) {
+    const userMappings = await prisma.ucc_user_mappings.findMany({
+        where: {
+            user_id: Number(userId),
+        },
+        select: {
+            ucc_id: true,
+        },
+    });
+
+    if (userMappings.length === 0) {
+        throw new APIError(STATUS_CODES.NOT_FOUND, RESPONSE_MESSAGES.ERROR.NO_UCC_FOUND);
+    }
+    logger.info("UCC ids fetched successfully.");
+    const uccIds = userMappings.map(mapping => mapping.ucc_id);
+
+    logger.info("Fetching all stretch IDs associated with the UCC IDs.");
+    // Fetch all stretchIds based on UCC IDs
+    const uccSegments = await prisma.uCCSegments.findMany({
+        where: {
+            UCC: { in: uccIds },
+        },
+        select: {
+            StretchID: true,
+        },
+    });
+
+    const stretchIds = uccSegments.map(segment => segment.StretchID);
+
+    if (stretchIds.length === 0) {
+        throw new APIError(STATUS_CODES.NOT_FOUND, RESPONSE_MESSAGES.ERROR.NO_STRETCH_FOUND);
+    }
+
+    return stretchIds;
+}
+
+export async function myStretchExportData(req, userId) {
+    try {
+        const stretchIds = await getUserStretchIds(userId);
+
+
+        const stretches = await prisma.$queryRaw`
+            SELECT 
+                s.id,
+                public.ST_Length(s.geom::public.geography) / 1000 AS length_in_km,
+                s."ProjectName",
+                s."StretchID",
+                array_agg(DISTINCT c."CorridorName") AS corridors,
+                array_agg(DISTINCT ppm."description") AS phases
+            FROM 
+                "nhai_gis"."Stretches" s
+            LEFT JOIN 
+                "nhai_gis"."Corridors" c ON s."CorridorID" = c."CorridorID"
+            LEFT JOIN 
+                "tenant_nhai"."project_phase_master" ppm ON LPAD(s."PhaseCode", 2, '0') = LPAD(ppm."phase_code", 2, '0')
+            WHERE 
+                s."StretchID" IN (${Prisma.join(stretchIds)})
+            GROUP BY 
+                s.id, s.geom, s."ProjectName", s."StretchID"
+        `;
+        logger.info("Stretches data fetched successfully. ");
+
+        return stretches.map(record => ({
+            USC: record.StretchID,
+            StretchName: record.ProjectName,
+            Length: record.length_in_km,
+            Phase: record.phases,
+            Corridor: record.corridors
+          }));
+    } catch (error) {
         throw error;
     }
 }
