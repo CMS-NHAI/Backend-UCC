@@ -510,7 +510,7 @@ export const deleteMultipleFileService = async (ids) => {
 };
 
 export const getcontractListService = async (req) => {
-  const {stretchIds,piu,ro,program,phase,typeOfWork,scheme,corridor} = req.body;
+  const { stretchIds, piu, ro, program, phase, typeOfWork, scheme, corridor } = req.body;
   const userId = req.user?.user_id;
   if (!userId) {
     throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
@@ -521,13 +521,13 @@ export const getcontractListService = async (req) => {
       StretchID: {
         in: stretchIds,
       },
-        ...(piu?.length ? { PIU: { in: piu } } : {}),
-        ...(ro?.length ? { RO: { in: ro } } : {}),
-        ...(program?.length ? { ProgramName: { in: program } } : {}),
-        ...(phase?.length ? { PhaseCode: { in: phase } } : {}),
-        ...(typeOfWork?.length ? { TypeofWork: { in: typeOfWork } } : {}),
-        ...(scheme?.length ? { Scheme: { in: scheme } } : {}),
-        ...(corridor?.length ? { CorridorID: { in: corridor } } : {}),
+      ...(piu?.length ? { PIU: { in: piu } } : {}),
+      ...(ro?.length ? { RO: { in: ro } } : {}),
+      ...(program?.length ? { ProgramName: { in: program } } : {}),
+      ...(phase?.length ? { PhaseCode: { in: phase } } : {}),
+      ...(typeOfWork?.length ? { TypeofWork: { in: typeOfWork } } : {}),
+      ...(scheme?.length ? { Scheme: { in: scheme } } : {}),
+      ...(corridor?.length ? { CorridorID: { in: corridor } } : {}),
     },
     distinct: ['UCC'],
     select: {
@@ -542,99 +542,76 @@ export const getcontractListService = async (req) => {
   });
 
   const finalContractList = await result.map((item) => {
-  item.status = "awarded";
-  return item
+    item.status = "awarded";
+    return item
   });
   return finalContractList;
 
 }
 
-export const basicDetailsOnReviewPage = async (ucc_id) => {
-  try {
-    const uccRecord = await prisma.ucc_master.findUnique({
-      where: { ucc_id: ucc_id },
-      select: {
-        contract_name: true,
-        short_name: true,
-        implementation_mode: true,
-        contract_length: true,
-        created_by: true,
-        piu_id: true, // This comes directly from ucc_master
-        ml_states: {
-          select: {
-            state_name: true,
-          },
-        },
-        scheme_master: {
-          select: {
-            scheme_name: true,
-          },
-        },
-        or_office_master: {
-          select: {
-            office_name: true,
-          },
-        },
-        ucc_implementation_mode: {
-          select: {
-            mode_name: true,
-          },
-        },
-      },
-    });
+export const updateContractDetailService = async (req) => {
 
-    if (!uccRecord) {
-      return {
-        status: false,
-        message: "UCC record not found",
-        data: null,
-      };
-    }
-
-    // Get piu_id directly from uccRecord
-    const piuIds = uccRecord.piu_id || [];
-
-    // Fetch details of these piu_ids from or_office_master
-    const piuDetails = await prisma.or_office_master.findMany({
-      where: {
-        office_id: { in: piuIds },
-      },
-      select: {
-        office_id: true,
-        office_name: true,
-      },
-    });
-
-    const type_of_work = await prisma.ucc_type_of_work_location.findMany({
-      where: {
-        user_id: uccRecord.created_by,
-      },
-      select: {
-        type_of_issue: true,
-        start_distance_km: true,
-        start_distance_metre: true,
-        end_distance_km: true,
-        end_distance_metre: true,
-        start_distance_km: true,
-      },
-    });
-
-    // Prepare the final response
-    const data = {
-      contract_name: uccRecord.contract_name,
-      short_name: uccRecord.short_name,
-      implementation_mode: uccRecord.implementation_mode,
-      contract_length: uccRecord.contract_length,
-      piu_details: piuDetails, // Details of each piu_id
-      ml_states: uccRecord.ml_states.state_name.scheme_name,
-      scheme_master: uccRecord.scheme_master.scheme_name,
-      or_office_master: uccRecord.or_office_master.office_name,
-      type_of_work: type_of_work,
-      // supporting_documents: supporting_documents
-    };
-    return data;
-  } catch (error) {
-    console.error("Error fetching UCC record:", error);
-   throw error
+  const { shortName, piu, implementationId, schemeId, contractName, roId, stateId, contractLength } = req.body;
+  const userId = req.user?.user_id;
+  const ucc_id = req.body?.ucc_id
+  if (!ucc_id) {
+    throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
   }
-};
+
+  const existingContract = await prisma.ucc_master.findFirst({
+    where: {
+      ucc_id: ucc_id,
+    },
+  });
+
+  if (!existingContract) {
+    throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.CONTRACT_NOT_FOUND);
+  }
+
+  const result = await prisma.ucc_master.update({
+    where: {
+      ucc_id: ucc_id,
+    },
+    data: {
+      short_name: shortName,
+      piu_id: piu,
+      implementation_mode_id: implementationId,
+      scheme_id: schemeId,
+      updated_by: userId,
+      project_name: contractName,
+      ro_id: roId,
+      state_id: stateId,
+      contract_length: contractLength,
+    },
+  });
+
+  // if (piu?.length > 0) {
+  //   try {
+  //     const piuData = piu.map((piu_id) => ({
+  //       ucc_id: result.ucc_id,
+  //       piu_id,
+  //       updated_by: userId,
+  //     }));
+
+  //     const updateResult = await prisma.ucc_piu.updateMany({
+  //       where: {
+  //         piu_id: {
+  //           in: piu,
+  //         },
+  //       },
+  //       data: piuData,
+  //     });
+
+  //     console.log('Update successful:', updateResult);
+  //   } catch (error) {
+  //     console.error('Error updating piu records:', error);
+  //   }
+  // } else {
+  //   console.log('No piu ids provided to update.');
+  // }
+
+
+  return result;
+
+}
+

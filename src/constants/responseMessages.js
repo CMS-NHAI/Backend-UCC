@@ -8,6 +8,7 @@ export const RESPONSE_MESSAGES = {
       FILE_NOT_FOUND: "File not found",
       FILE_UPLOAD_FAILED: "File upload failed",
       USER_NOT_FOUND: "User not found",
+      CONTRACT_NOT_FOUND: "Contract not found",
       DOCUMENT_TYPE_NOT_FOUND : "Document type not provided",
       INVALID_FILE_TYPE:"Invalid file type. Only kml files are allowed.",
       ERROR_FILE_DOWNLOAD: "Error occurred while downloading the file from S3 bucket",
@@ -24,5 +25,6 @@ export const RESPONSE_MESSAGES = {
         FILE_ALREADY_DELETED:"File Already Deleted",
         CONTRACT_DETAILS_SAVED: "Contract details saved successfully",
         CONTRACT_DETAILS_FETCHED: "Contract details fetched successfully",
+        CONTRACT_UPDATED: "Contract updated successfully"
     },
   }
