@@ -669,7 +669,6 @@ export const basicDetailsOnReviewPage = async () => {
         data: null,
       };
     }
-  }
 
     // Get piu_id directly from uccRecord
     const piuIds = uccRecord.piu_id || [];
