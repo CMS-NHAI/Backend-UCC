@@ -1,4 +1,4 @@
-class LoggingController {
+class LoggingController { 
     static async storeLog(req, res) {
       const { service, level, message } = req.body;
   
