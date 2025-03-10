@@ -80,9 +80,102 @@ export const typeOfWorkRequestBodySchema = Joi.object()
 ;
 
 export const saveContractDetailsSchema = Joi.object({
-  shortName: Joi.string().required(),
-  piu:Joi.array().items(Joi.number().required()).required(),
-  implementationId:Joi.number().required(),
-  schemeId:Joi.number().required(),
-  contractName:Joi.string().required(),
-})
+  shortName: Joi.string()
+    .trim()
+    .min(1)
+    .required()
+    .messages({
+      "string.base": "Short name must be a string.",
+      "string.empty": "Short name is required.",
+      "any.required": "Short name is required."
+    }),
+
+  piu: Joi.array()
+    .items(Joi.number().positive().required().messages({
+      "number.base": "PIU ID must be a number.",
+      "number.positive": "PIU ID must be a positive number.",
+      "any.required": "Each PIU ID is required."
+    }))
+    .min(1)
+    .required()
+    .messages({
+      "array.base": "PIU must be an array.",
+      "array.min": "At least one PIU ID is required.",
+      "any.required": "PIU is required."
+    }),
+
+  implementationId: Joi.number()
+    .positive()
+    .required()
+    .messages({
+      "number.base": "Implementation ID must be a number.",
+      "number.positive": "Implementation ID must be a positive number.",
+      "any.required": "Implementation ID is required."
+    }),
+
+  schemeId: Joi.number()
+    .positive()
+    .required()
+    .messages({
+      "number.base": "Scheme ID must be a number.",
+      "number.positive": "Scheme ID must be a positive number.",
+      "any.required": "Scheme ID is required."
+    }),
+
+  contractName: Joi.string()
+    .trim()
+    .min(1)
+    .required()
+    .messages({
+      "string.base": "Contract name must be a string.",
+      "string.empty": "Contract name is required.",
+      "any.required": "Contract name is required."
+    }),
+
+  roId: Joi.number()
+    .positive()
+    .required()
+    .messages({
+      "number.base": "RO ID must be a number.",
+      "number.positive": "RO ID must be a positive number.",
+      "any.required": "RO ID is required."
+    }),
+
+  stateId: Joi.number()
+    .positive()
+    .required()
+    .messages({
+      "number.base": "State ID must be a number.",
+      "number.positive": "State ID must be a positive number.",
+      "any.required": "State ID is required."
+    }),
+    contractLength: Joi.number()
+    .positive()
+    .required()
+    .messages({
+      "number.base": "Contract Length must be a number.",
+      "number.positive": "Contract Length must be a positive number.",
+      "any.required": "Contract Length is required."
+    }),
+});
+
+export const contractValidationSchema = Joi.object({
+  stretchIds: Joi.array()
+      .items(Joi.string().trim().required()) // Must be an array of strings
+      .min(1)
+      .required()
+      .messages({
+          'any.required': 'stretchIds is required',
+          'array.base': 'stretchIds must be an array',
+          'array.min': 'At least one stretchId must be provided'
+      }),
+  
+  piu: Joi.array().items(Joi.string().trim()).optional(), // Optional array of strings
+  ro: Joi.array().items(Joi.string().trim()).optional(), // Optional array of strings
+  program: Joi.array().items(Joi.string().trim()).optional(), // Optional array of strings
+  phase: Joi.array().items(Joi.string().trim()).optional(), // Optional array of strings
+  typeOfWork: Joi.array().items(Joi.string().trim()).optional(), // Optional array of strings
+  scheme: Joi.array().items(Joi.string().trim()).optional(), // Optional array of strings
+  corridor: Joi.array().items(Joi.string().trim()).optional(), // Optional array of strings
+});
+

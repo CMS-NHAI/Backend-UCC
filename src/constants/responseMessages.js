@@ -13,8 +13,9 @@ export const RESPONSE_MESSAGES = {
       ERROR_FILE_DOWNLOAD: "Error occurred while downloading the file from S3 bucket",
       INVALID_PDF_FILE_TYPE:"Invalid file type. Only PDF files are allowed.",
       NO_UCC_FOUND: "No UCC mappings found for the given userId",
-      NO_STRETCH_FOUND: "No stretches found for the given UCCs"
-
+      NO_STRETCH_FOUND: "No stretches found for the given UCCs",
+      NO_STRETCH_FOUND_FOR_ID: "No stretches found for the given Stretch ID",
+      DRAFT_ALREADY_EXISTS:"A draft contract already exists for this user."
     },
     SUCCESS: {
         FILE_UPLOADED: "File uploaded successfully",
@@ -22,5 +23,6 @@ export const RESPONSE_MESSAGES = {
         FILE_DELETED: "File deleted successfully",
         FILE_ALREADY_DELETED:"File Already Deleted",
         CONTRACT_DETAILS_SAVED: "Contract details saved successfully",
+        CONTRACT_DETAILS_FETCHED: "Contract details fetched successfully",
     },
   }

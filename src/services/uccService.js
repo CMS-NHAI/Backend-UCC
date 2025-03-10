@@ -15,6 +15,7 @@ import {
   getSegmentInsertData,
 } from "../utils/uccUtil.js";
 import { ALLOWED_TYPES_OF_WORK } from "../constants/stringConstant.js";
+import { STATUS } from "../constants/appConstants.js";
 
 export const uploadFileService = async (req, res) => {
   await new Promise((resolve, reject) => {
@@ -30,8 +31,6 @@ export const uploadFileService = async (req, res) => {
       resolve();
     });
   });
-
-  console.log("req", req.file, "body", req.body);
 
   const user_id = req.user?.user_id;
   if (!user_id) {
@@ -71,7 +70,7 @@ export const uploadFileService = async (req, res) => {
         document_type: req.body.document_type,
         document_name: req.file.originalname,
         document_path: params.Key,
-        created_by: user_id,
+        created_by: user_id.toString(),
         status: "Draft",
       },
     }),
@@ -135,14 +134,10 @@ export const uploadMultipleFileService = async (req, res) => {
     // Upload the file to S3
     const uploadFileResult = await s3Client.send(command);
 
-    if (
-      !uploadFileResult ||
-      uploadFileResult.$metadata.httpStatusCode !== STATUS_CODES.OK
-    ) {
-      throw new APIError(
-        STATUS_CODES.INTERNAL_SERVER_ERROR,
-        RESPONSE_MESSAGES.ERROR.FILE_UPLOAD_FAILED
-      );
+    if (!uploadFileResult || uploadFileResult.$metadata.httpStatusCode !== STATUS_CODES.OK) {
+
+      throw new APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, RESPONSE_MESSAGES.ERROR.FILE_UPLOAD_FAILED);
+
     }
 
     const savedFile = await prisma.supporting_documents.create({
@@ -338,15 +333,23 @@ export const getAllImplementationModes = async () => {
   return allModes;
 };
 export const insertContractDetails = async (req) => {
-  const { shortName, piu, implementationId, schemeId, contractName } = req.body;
-  console.log(req.body, "req.body");
+  const { shortName, piu, implementationId, schemeId, contractName, roId, stateId, contractLength } = req.body;
   const userId = req.user?.user_id;
   if (!userId) {
-    throw new APIError(
-      STATUS_CODES.BAD_REQUEST,
-      RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND
-    );
+    throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
   }
+
+  const existingContract = await prisma.ucc_master.findFirst({
+    where: {
+      created_by: userId,
+      status: STATUS.DRAFT,
+    },
+  });
+
+  if (existingContract) {
+    throw new APIError(STATUS_CODES.CONFLICT, RESPONSE_MESSAGES.ERROR.DRAFT_ALREADY_EXISTS);
+  }
+
   const result = await prisma.ucc_master.create({
     data: {
       short_name: shortName,
@@ -354,15 +357,17 @@ export const insertContractDetails = async (req) => {
       implementation_mode_id: implementationId,
       scheme_id: schemeId,
       created_by: userId,
-      status: "Draft",
+      status: STATUS.DRAFT,
       project_name: contractName,
+      ro_id: roId,
+      state_id: stateId,
+      contract_length: contractLength
     },
     select: {
       ucc_id: true,
     },
   });
 
-  console.log(result, "result");
 
   if (piu?.length) {
     await prisma.ucc_piu.createMany({
@@ -374,110 +379,172 @@ export const insertContractDetails = async (req) => {
     });
   }
   return result;
-};
-export const basicDetailsOnReviewPage = async () => {
+
+}
+
+export async function getMultipleFileFromS3(req, userId) {
   try {
-    const uccRecord = await prisma.ucc_master.findUnique({
-      where: { ucc_id: 1 },
+    logger.info("Fetching multiple document details from DB");
+
+    // Fetch all documents for the user that are not deleted
+    const fileRecords = await prisma.supporting_documents.findMany({
+      where: {
+        created_by: userId.toString(),
+        is_deleted: false,
+      },
       select: {
-        contract_name: true,
-        short_name: true,
-        implementation_mode: true,
-        contract_length: true,
-        created_by: true,
-        piu_id: true, // This comes directly from ucc_master
-        ml_states: {
-          select: {
-            state_name: true,
-          },
-        },
-        scheme_master: {
-          select: {
-            scheme_name: true,
-          },
-        },
-        or_office_master: {
-          select: {
-            office_name: true,
-          },
-        },
-        ucc_implementation_mode: {
-          select: {
-            mode_name: true,
-          },
-        },
+        document_id: true,
+        document_path: true,
+        document_name: true,
       },
     });
 
-    if (!uccRecord) {
-      return {
-        status: false,
-        message: "UCC record not found",
-        data: null,
-      };
+    // If no files found, throw an error
+    if (!fileRecords || fileRecords.length === 0) {
+      throw new APIError(STATUS_CODES.NOT_FOUND, RESPONSE_MESSAGES.ERROR.NO_FILES_FOUND);
     }
 
-    // Get piu_id directly from uccRecord
-    const piuIds = uccRecord.piu_id || [];
+    logger.info(`Found ${fileRecords.length} document(s).`);
 
-    // Fetch details of these piu_ids from or_office_master
-    const piuDetails = await prisma.or_office_master.findMany({
-      where: {
-        office_id: { in: piuIds },
-      },
-      select: {
-        office_id: true,
-        office_name: true,
-      },
-    });
+    // Process each file and fetch from S3
+    const files = await Promise.all(fileRecords.map(async (fileRecord) => {
+      try {
+        const fileKey = fileRecord.document_path;
+        const getObjectParams = {
+          Bucket: process.env.AWS_BUCKET_NAME,
+          Key: fileKey,
+        };
 
-    const type_of_work = await prisma.ucc_type_of_work_location.findMany({
-      where: {
-        user_id: uccRecord.created_by,
-      },
-      select: {
-        type_of_issue: true,
-        start_distance_km: true,
-        start_distance_metre: true,
-        end_distance_km: true,
-        end_distance_metre: true,
-        start_distance_km: true,
-      },
-    });
-    // const supporting_documents = await prisma.supporting_documents.findMany({
-    //   where: {
-    //     user_id: uccRecord.created_by,
-    //   },
-    //   select: {
-    //     type_of_issue: true,
-    //     start_distance_km: true,
-    //     start_distance_metre: true,
-    //     end_distance_km: true,
-    //     end_distance_metre: true,
-    //     start_distance_km: true,
-    //   },
-    // });
+        logger.info(`Fetching file with key: ${fileKey} from S3 bucket.`);
 
-    // Prepare the final response
-    const data = {
-      contract_name: uccRecord.contract_name,
-      short_name: uccRecord.short_name,
-      implementation_mode: uccRecord.implementation_mode,
-      contract_length: uccRecord.contract_length,
-      piu_details: piuDetails, // Details of each piu_id
-      ml_states: uccRecord.ml_states.state_name.scheme_name,
-      scheme_master: uccRecord.scheme_master.scheme_name,
-      or_office_master: uccRecord.or_office_master.office_name,
-      type_of_work: type_of_work,
-      supporting_documents: supporting_documents
-    };
-    return data;
+        const command = new GetObjectCommand(getObjectParams);
+
+        const data = await s3Client.send(command);
+
+        // Extract the file name from the file path
+        const fileName = fileKey.split('/').pop();
+        logger.info(`File ${fileName} fetched successfully from S3.`);
+
+        return { data: data.Body, fileName };
+      } catch (fileError) {
+        // Log error specific to each file
+        logger.error({
+          message: `Error fetching file: ${fileRecord.document_name}`,
+          error: fileError,
+          url: req.url,
+          method: req.method,
+          time: new Date().toISOString(),
+        });
+        // Return error information for that file
+        return { error: `Error fetching file: ${fileRecord.document_name}`, fileName: fileRecord.document_name };
+      }
+    }));
+
+    return files; // Return the array of files (or errors)
   } catch (error) {
-    console.error("Error fetching UCC record:", error);
-    return {
-      status: false,
-      message: "An error occurred while fetching UCC record",
-      data: null,
-    };
+    logger.error({
+      message: RESPONSE_MESSAGES.ERROR.REQUEST_PROCESSING_ERROR,
+      error: error,
+      url: req.url,
+      method: req.method,
+      time: new Date().toISOString(),
+    });
+    throw error;
   }
+}
+
+export const deleteMultipleFileService = async (ids) => {
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    throw new APIError(STATUS_CODES.BAD_REQUEST, 'No file IDs provided for deletion.');
+  }
+
+  const deletionResults = [];
+
+  for (const id of ids) {
+
+    try {
+      // Fetch the file record from the database
+      const result = await prisma.supporting_documents.findUnique({
+        where: { document_id: id },
+      });
+
+      if (!result) {
+        deletionResults.push({ id, error: 'File not found' });
+        continue;
+      }
+
+      if (result.is_deleted) {
+        deletionResults.push({ id, error: 'File already deleted' });
+        continue;
+      }
+
+      const params = {
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: result.document_path,
+      };
+
+      // Delete the file from S3
+      const s3result = await s3Client.send(new DeleteObjectCommand(params));
+
+      if (s3result.$metadata.httpStatusCode !== 204) {
+        deletionResults.push({ id, error: 'Failed to delete file from S3' });
+        continue;
+      }
+
+
+      const deletedResult = await prisma.supporting_documents.update({
+        where: { document_id: id },
+        data: { is_deleted: true },
+      });
+
+      deletionResults.push({ id, success: true });
+
+    } catch (error) {
+      deletionResults.push({ id, error: error.message || 'An unexpected error occurred' });
+    }
+  }
+
+  // Return the summary of deletion attempts
+  return deletionResults;
 };
+
+export const getcontractListService = async (req) => {
+  const {stretchIds,piu,ro,program,phase,typeOfWork,scheme,corridor} = req.body;
+  const userId = req.user?.user_id;
+  if (!userId) {
+    throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
+  }
+
+  const result = await prisma.UCCSegments.findMany({
+    where: {
+      StretchID: {
+        in: stretchIds,
+      },
+        ...(piu?.length ? { PIU: { in: piu } } : {}),
+        ...(ro?.length ? { RO: { in: ro } } : {}),
+        ...(program?.length ? { ProgramName: { in: program } } : {}),
+        ...(phase?.length ? { PhaseCode: { in: phase } } : {}),
+        ...(typeOfWork?.length ? { TypeofWork: { in: typeOfWork } } : {}),
+        ...(scheme?.length ? { Scheme: { in: scheme } } : {}),
+        ...(corridor?.length ? { CorridorID: { in: corridor } } : {}),
+    },
+    distinct: ['UCC'],
+    select: {
+      TypeofWork: true,
+      StretchID: true,
+      ProjectName: true,
+      PIU: true,
+      UCC: true,
+      TotalLength: true,
+      RevisedLength: true,
+    },
+  });
+
+  const finalContractList = await result.map((item) => {
+  item.status = "awarded";
+  return item
+  });
+  return finalContractList;
+
+}

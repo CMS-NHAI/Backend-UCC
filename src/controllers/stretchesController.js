@@ -5,7 +5,7 @@
 import { Readable } from "stream";
 import { STATUS_CODES } from "../constants/statusCodeConstants.js";
 import { errorResponse } from "../helpers/errorHelper.js";
-import { fetchRequiredStretchData, getUserStretches } from "../services/stretchService.js";
+import { fetchRequiredStretchData, getStretchDetails, getUserStretches } from "../services/stretchService.js";
 import logger from "../utils/logger.js";
 import { HEADER_CONSTANTS } from "../constants/headerConstant.js";
 
@@ -30,7 +30,7 @@ export async function getRequiredStretch(req, res) {
         res.status(STATUS_CODES.OK).json({
             success: true,
             data
-        })
+        });
     } catch (error) {
         await errorResponse(req, res, error);
     }
@@ -59,16 +59,19 @@ export async function fetchMyStretches(req, res) {
     try {
         logger.info("UCC Controller :: getUserStretches");
         const userId = req.user?.user_id;
+        const page = parseInt(req.query.page) || 1;
+        const pageSize = parseInt(req.query.pageSize) || 10;
+        const projectType = req.query.projectType;
 
-        const data = await getUserStretches(req, userId);
+        const response = await getUserStretches(req, userId, page, pageSize, projectType);
 
         const readable = new Readable({
             read() {
                 this.push('{ "success": true, "data": [');
 
-                // Stream the large data in chunks
+                // Stream the data in chunks
                 let first = true;
-                data.forEach((item) => {
+                response.data.forEach((item) => {
                     if (first) {
                         first = false;
                     } else {
@@ -77,15 +80,42 @@ export async function fetchMyStretches(req, res) {
                     this.push(JSON.stringify(item));
                 });
 
-                this.push(']}');
+                this.push('], "pagination": ');
+                this.push(JSON.stringify(response.pagination));
+                this.push('}');
                 this.push(null);
             }
         });
 
         res.setHeader(HEADER_CONSTANTS.CONTENT_TYPE, HEADER_CONSTANTS.APPLICATION_JSON);
+        res.setHeader(HEADER_CONSTANTS.TRANSFER_ENCODING, HEADER_CONSTANTS.CHUNKED);
 
         // Pipe the data as a stream to the response
         readable.pipe(res);
+    } catch (error) {
+        await errorResponse(req, res, error);
+    }
+}
+
+/**
+ * Fetches the details of a stretch based on its StretchID and returns the data to the client.
+ *
+ * This function handles the API request to fetch the stretch details. It retrieves the stretch
+ * data using the `getStretchDetails` function, which includes geographical data, corridor names,
+ * phase information, and associated PIU/RO data. If an error occurs, it returns an appropriate response.
+ *
+ * @param {Object} req - The request object containing the stretch ID in the parameters.
+ * @param {Object} res - The response object used to send back the stretch details or error response.
+ * @throws {APIError} - If an error occurs while fetching the stretch details, it will be passed to the error handler.
+ */
+export async function fetchStretchDetails(req, res) {
+    try {
+        const stretchId = req.params?.stretchId;
+        const data = await getStretchDetails(req, stretchId);
+        res.status(STATUS_CODES.OK).json({
+            success: true,
+            data
+        });
     } catch (error) {
         await errorResponse(req, res, error);
     }

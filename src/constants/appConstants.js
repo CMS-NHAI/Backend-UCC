@@ -6,3 +6,10 @@ export const APP_CONSTANTS = Object.freeze({
   PORT: process.env.PORT || 3004,
   VERSION: process.env.VERSION || '1.0.0',
 });
+
+export const STATUS = Object.freeze({
+  ACTIVE: "active",
+  INACTIVE: "inactive",
+  DRAFT: "Draft",
+  // Add more statuses if needed
+});

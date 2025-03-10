@@ -3,21 +3,8 @@ import { saveContractDetails } from "../controllers/saveContractController.js";
 import validate from "../middlewares/validate.js";
 import { validateToken } from "../middlewares/validateToken.js";
 import { STRING_CONSTANT } from "../constants/stringConstant.js";
-import { getDistrict, 
-    getSchemes, 
-    getStates, 
-    getTypeOfWork, 
-    getUcc,
-    insertTypeOfWorkController,
-    uploadFile,
-    deleteFile,
-    getFile, 
-    uploadSupportingDocument,
-    getImplementationModes,
-    getBasicDetailsOfReviewPage
-} 
-from "../controllers/uccController.js";
-import { getRequiredStretchParamsValidationSchema, getRequiredStretchQueryValidationSchema, typeOfWorkRequestBodySchema,saveContractDetailsSchema } from "../validations/uccValidation.js";
+import { getDistrict, getSchemes, getStates, getTypeOfWork, getUcc,insertTypeOfWorkController,uploadFile,deleteFile,getFile,getImplementationModes, getRos, getPIUByROId,getuserUccDetails } from "../controllers/uccController.js";
+import { getRequiredStretchParamsValidationSchema, getRequiredStretchQueryValidationSchema, typeOfWorkRequestBodySchema,saveContractDetailsSchema,contractValidationSchema } from "../validations/uccValidation.js";
 import { getChainageByUcc } from "../controllers/chainageController.js";
 
 const router = express.Router()
@@ -27,7 +14,10 @@ router.get('/type_of_work', validateToken, getTypeOfWork);
 router.get('/schemes', validateToken, getSchemes);
 router.get('/states', validateToken, getStates);
 router.get('/districtsViaStateId', validateToken, getDistrict);
-router.get('/getChainageByUcc', validateToken, getChainageByUcc);
+router.post('/getChainageByUcc', validateToken, getChainageByUcc);
+router.get('/ROs', validateToken, getRos);
+router.get('/PIUbyROId', validateToken, getPIUByROId);
+
 
 
 router.post('/upload',validateToken, uploadFile);
@@ -41,7 +31,6 @@ router.post(
     insertTypeOfWorkController
 );
 router.post('/deleteFile',validateToken,deleteFile);
-router.post('/upload/supporting/document', validateToken, uploadSupportingDocument)
 router.post('/saveContractDetails',validateToken,validate(saveContractDetailsSchema),saveContractDetails);
-
+router.post('/getUccDetails',validateToken,validate(contractValidationSchema),getuserUccDetails);
 export default router;
