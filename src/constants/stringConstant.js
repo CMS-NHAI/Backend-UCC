@@ -9,7 +9,8 @@ export const STRING_CONSTANT = Object.freeze({
     RO: "RO-",
     DRAFT: "DRAFT",
     TRUE: "true",
-    MY_STRETCHES: "MyStretches"
+    MY_STRETCHES: "MyStretches",
+    COMMA: ", "
 });
 
 export const ALLOWED_TYPES_OF_WORK = Object.freeze([

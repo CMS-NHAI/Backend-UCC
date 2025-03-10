@@ -113,6 +113,33 @@ async function nhaiStretchDetails(page, pageSize, stretchIds) {
 
     logger.info("Stretches data fetched successfully. ");
 
+    const uccSegments = await prisma.UCCSegments.findMany({
+        where: {
+            StretchID: { in: stretchIds },
+        },
+        select: {
+            StretchID: true,
+            PIU: true,
+            RO: true,
+            UCC: true,
+        },
+    });
+
+    // Group UCC segments by StretchID and concatenate PIU, RO, UCC values
+    const uccSegmentsByStretch = uccSegments.reduce((acc, uccSegment) => {
+        if (!acc[uccSegment.StretchID]) {
+            acc[uccSegment.StretchID] = {
+                PIUs: [],
+                RO: [],
+                UCCs: [],
+            };
+        }
+        if (uccSegment.PIU) acc[uccSegment.StretchID].PIUs.push(uccSegment.PIU);
+        if (uccSegment.RO) acc[uccSegment.StretchID].RO.push(uccSegment.RO);
+        if (uccSegment.UCC) acc[uccSegment.StretchID].UCCs.push(uccSegment.UCC);
+        return acc;
+    }, {});
+
     const uccCounts = await prisma.UCCSegments.groupBy({
         by: ['StretchID'],
         _count: {
@@ -126,14 +153,17 @@ async function nhaiStretchDetails(page, pageSize, stretchIds) {
     const data = stretches.map((item) => {
         const uniquePhases = Array.from(new Set(item.phases.map(getPhaseNameBeforeParentheses)));
         const uccCount = uccCounts.find(count => count.StretchID === item.StretchID);
+        const uccData = uccSegmentsByStretch[item.StretchID] || { PIUs: [], RO: [], UCCs: [] };
 
         return {
             ...item,
             geojson: JSON.parse(item.geojson),
             phases: uniquePhases,
             ucc_count: uccCount ? uccCount._count.UCC : 0,
+            PIU: uccData.PIUs.join(STRING_CONSTANT.COMMA) || null,
+            RO: uccData.RO.join(STRING_CONSTANT.COMMA) || null,
             type: STRING_CONSTANT.NHAI
-        }
+        };
     });
 
     return {
@@ -368,7 +398,7 @@ export async function getStretchDetails(req, stretchId) {
                 RO: true,
                 UCC: true,
             },
-        });;
+        });
 
         if (uccSegments.length === 0) {
             throw new APIError(STATUS_CODES.NOT_FOUND, RESPONSE_MESSAGES.ERROR.NO_STRETCH_FOUND_FOR_ID);
@@ -466,7 +496,7 @@ export async function myStretchExportData(req, userId) {
             Length: record.length_in_km,
             Phase: record.phases,
             Corridor: record.corridors
-          }));
+        }));
     } catch (error) {
         throw error;
     }
