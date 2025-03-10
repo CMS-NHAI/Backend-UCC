@@ -33,7 +33,7 @@ router.post(
 router.post('/deleteFile',validateToken,deleteFile);
 router.post('/saveContractDetails',validateToken,validate(saveContractDetailsSchema),saveContractDetails);
 router.post('/getUccDetails',validateToken,validate(contractValidationSchema),getuserUccDetails);
-router.patch('/update/constract/detail', validateToken, updateContractDetails);
+router.patch('/update/constract/detail', validateToken, updateContractDetails)
 
 router.get('/getBasicDetailsOfReviewPage',validateToken,getBasicDetailsOfReviewPage);
 

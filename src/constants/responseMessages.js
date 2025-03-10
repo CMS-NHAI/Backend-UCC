@@ -25,6 +25,6 @@ export const RESPONSE_MESSAGES = {
         FILE_ALREADY_DELETED:"File Already Deleted",
         CONTRACT_DETAILS_SAVED: "Contract details saved successfully",
         CONTRACT_DETAILS_FETCHED: "Contract details fetched successfully",
-        CONTRACT_UPDATED: "Contract updated successfully",
+        CONTRACT_UPDATED: "Contract updated successfully"
     },
   }

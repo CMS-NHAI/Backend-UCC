@@ -587,7 +587,6 @@ export const updateContractDetailService = async (req) => {
 
   // if (piu?.length > 0) {
   //   try {
-
   //     const piuData = piu.map((piu_id) => ({
   //       ucc_id: result.ucc_id,
   //       piu_id,

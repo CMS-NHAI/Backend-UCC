@@ -7,7 +7,6 @@ import logger from '../utils/logger.js';
 /**
  * Controller to update the contract details.
  * This function update the contract data to the database.
- * 
  * @param {Object} req - The request object.
  * @param {Object} res - The response object.
  * @throws {Error} If there is an error while updating the contract details or during any other part of the process.
