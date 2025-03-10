@@ -5,7 +5,7 @@ import { errorResponse } from '../helpers/errorHelper.js';
 import APIError from '../utils/apiError.js';
 import { prisma } from '../config/prismaClient.js';
 import logger from "../utils/logger.js";
-import { getFileFromS3, insertTypeOfWork,uploadFileService, deleteFileService, getAllImplementationModes, uploadMultipleFileService,getcontractListService } from '../services/uccService.js';
+import { getFileFromS3, insertTypeOfWork,uploadFileService, deleteFileService, getAllImplementationModes, uploadMultipleFileService,getcontractListService,basicDetailsOnReviewPage } from '../services/uccService.js';
 // import uccService from '../services/uccService.js';
 
 /**
@@ -398,3 +398,16 @@ export const getuserUccDetails = async (req, res) => {
     return await errorResponse(req, res, error);
   }
 }
+
+export const getBasicDetailsOfReviewPage = async (req,res, next) => {
+  try {
+      const basicDetails = await basicDetailsOnReviewPage();
+      res.status(STATUS_CODES.OK).json({
+        status: true,
+        message: "",
+        data: basicDetails,
+      }); 
+  } catch (error) {
+  return await errorResponse(req, res, error);
+  }
+};
