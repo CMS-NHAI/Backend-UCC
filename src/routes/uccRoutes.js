@@ -3,7 +3,20 @@ import { saveContractDetails } from "../controllers/saveContractController.js";
 import validate from "../middlewares/validate.js";
 import { validateToken } from "../middlewares/validateToken.js";
 import { STRING_CONSTANT } from "../constants/stringConstant.js";
-import { getDistrict, getSchemes, getStates, getTypeOfWork, getUcc,insertTypeOfWorkController,uploadFile,deleteFile,getFile, uploadSupportingDocument,getImplementationModes } from "../controllers/uccController.js";
+import { getDistrict, 
+    getSchemes, 
+    getStates, 
+    getTypeOfWork, 
+    getUcc,
+    insertTypeOfWorkController,
+    uploadFile,
+    deleteFile,
+    getFile, 
+    uploadSupportingDocument,
+    getImplementationModes,
+    getBasicDetailsOfReviewPage
+} 
+from "../controllers/uccController.js";
 import { getRequiredStretchParamsValidationSchema, getRequiredStretchQueryValidationSchema, typeOfWorkRequestBodySchema,saveContractDetailsSchema } from "../validations/uccValidation.js";
 import { getChainageByUcc } from "../controllers/chainageController.js";
 
@@ -20,6 +33,7 @@ router.get('/getChainageByUcc', validateToken, getChainageByUcc);
 router.post('/upload',validateToken, uploadFile);
 router.get('/getFile',validateToken, getFile);
 router.get('/getImplementationModes',validateToken,getImplementationModes);
+router.get('/getBasicDetailsOfReviewPage',validateToken,getBasicDetailsOfReviewPage);
 router.post(
     '/insertTypeOfWork',
     validateToken,

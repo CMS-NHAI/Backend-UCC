@@ -1,12 +1,19 @@
-import { GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { s3Client } from '../config/default.js';
-import { prisma } from '../config/prismaClient.js';
-import { upload, ValidateSupportingPDF } from '../helpers/multerConfig.js';
-import { RESPONSE_MESSAGES } from '../constants/responseMessages.js';
-import { STATUS_CODES } from '../constants/statusCodeConstants.js';
+import {
+  GetObjectCommand,
+  PutObjectCommand,
+  DeleteObjectCommand,
+} from "@aws-sdk/client-s3";
+import { s3Client } from "../config/default.js";
+import { prisma } from "../config/prismaClient.js";
+import { upload, ValidateSupportingPDF } from "../helpers/multerConfig.js";
+import { RESPONSE_MESSAGES } from "../constants/responseMessages.js";
+import { STATUS_CODES } from "../constants/statusCodeConstants.js";
 import APIError from "../utils/apiError.js";
 import logger from "../utils/logger.js";
-import { getBlackSpotInsertData, getSegmentInsertData } from "../utils/uccUtil.js";
+import {
+  getBlackSpotInsertData,
+  getSegmentInsertData,
+} from "../utils/uccUtil.js";
 import { ALLOWED_TYPES_OF_WORK } from "../constants/stringConstant.js";
 
 export const uploadFileService = async (req, res) => {
@@ -14,7 +21,10 @@ export const uploadFileService = async (req, res) => {
     upload.single("file")(req, res, (err) => {
       if (err) {
         return reject(
-          new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.INVALID_FILE_TYPE)
+          new APIError(
+            STATUS_CODES.BAD_REQUEST,
+            RESPONSE_MESSAGES.ERROR.INVALID_FILE_TYPE
+          )
         );
       }
       resolve();
@@ -25,15 +35,24 @@ export const uploadFileService = async (req, res) => {
 
   const user_id = req.user?.user_id;
   if (!user_id) {
-    throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
+    throw new APIError(
+      STATUS_CODES.BAD_REQUEST,
+      RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND
+    );
   }
 
   if (!req.body.document_type) {
-    throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.DOCUMENT_TYPE_NOT_FOUND);
+    throw new APIError(
+      STATUS_CODES.BAD_REQUEST,
+      RESPONSE_MESSAGES.ERROR.DOCUMENT_TYPE_NOT_FOUND
+    );
   }
 
   if (!req.file) {
-    throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.FILE_NOT_FOUND);
+    throw new APIError(
+      STATUS_CODES.BAD_REQUEST,
+      RESPONSE_MESSAGES.ERROR.FILE_NOT_FOUND
+    );
   }
 
   const params = {
@@ -58,22 +77,28 @@ export const uploadFileService = async (req, res) => {
     }),
   ]);
 
-  if (!uploadFileResult || uploadFileResult.$metadata.httpStatusCode !== STATUS_CODES.OK) {
-    throw new APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, RESPONSE_MESSAGES.ERROR.FILE_UPLOAD_FAILED);
+  if (
+    !uploadFileResult ||
+    uploadFileResult.$metadata.httpStatusCode !== STATUS_CODES.OK
+  ) {
+    throw new APIError(
+      STATUS_CODES.INTERNAL_SERVER_ERROR,
+      RESPONSE_MESSAGES.ERROR.FILE_UPLOAD_FAILED
+    );
   }
 
   return savedFile;
 };
 
 export const uploadMultipleFileService = async (req, res) => {
-
   await new Promise((resolve, reject) => {
-
-    ValidateSupportingPDF.array('files', 10)(req, res, (err) => {
-
+    ValidateSupportingPDF.array("files", 10)(req, res, (err) => {
       if (err) {
         return reject(
-          new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.INVALID_PDF_FILE_TYPE)
+          new APIError(
+            STATUS_CODES.BAD_REQUEST,
+            RESPONSE_MESSAGES.ERROR.INVALID_PDF_FILE_TYPE
+          )
         );
       }
       resolve();
@@ -81,13 +106,19 @@ export const uploadMultipleFileService = async (req, res) => {
   });
 
   if (!req.files || req.files.length === 0) {
-    throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.NO_FILES_UPLOADED);
+    throw new APIError(
+      STATUS_CODES.BAD_REQUEST,
+      RESPONSE_MESSAGES.ERROR.NO_FILES_UPLOADED
+    );
   }
 
   // Validate user existence (if user_id is required)
   const user_id = req.user?.user_id;
   if (!user_id) {
-    throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
+    throw new APIError(
+      STATUS_CODES.BAD_REQUEST,
+      RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND
+    );
   }
 
   // file upload
@@ -104,10 +135,14 @@ export const uploadMultipleFileService = async (req, res) => {
     // Upload the file to S3
     const uploadFileResult = await s3Client.send(command);
 
-    if (!uploadFileResult || uploadFileResult.$metadata.httpStatusCode !== STATUS_CODES.OK) {
-
-      throw new APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, RESPONSE_MESSAGES.ERROR.FILE_UPLOAD_FAILED);
-      
+    if (
+      !uploadFileResult ||
+      uploadFileResult.$metadata.httpStatusCode !== STATUS_CODES.OK
+    ) {
+      throw new APIError(
+        STATUS_CODES.INTERNAL_SERVER_ERROR,
+        RESPONSE_MESSAGES.ERROR.FILE_UPLOAD_FAILED
+      );
     }
 
     const savedFile = await prisma.supporting_documents.create({
@@ -127,16 +162,18 @@ export const uploadMultipleFileService = async (req, res) => {
 
   try {
     const savedFiles = await Promise.all(uploadedFilesPromises);
-    return savedFiles
+    return savedFiles;
     // return res.status(STATUS_CODES.OK).json({
     //   files: savedFiles,
     // });
   } catch (error) {
     console.error(error);
-    throw new APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, RESPONSE_MESSAGES.ERROR.FILE_UPLOAD_FAILED);
+    throw new APIError(
+      STATUS_CODES.INTERNAL_SERVER_ERROR,
+      RESPONSE_MESSAGES.ERROR.FILE_UPLOAD_FAILED
+    );
   }
 };
-
 
 /**
  * Fetches the file from the S3 bucket and retrieves its details from the database.
@@ -144,9 +181,9 @@ export const uploadMultipleFileService = async (req, res) => {
  *
  * @param {Object} req - The Express request object. Used for logging purposes.
  * @param {string} userId - The ID of the user whose file is being fetched.
- * 
+ *
  * @returns {Object} - Returns an object containing the S3 file stream (`data.Body`) and the file name.
- * 
+ *
  * @throws {APIError} - Throws an error if the file record is not found or an S3 request fails.
  */
 export async function getFileFromS3(req, userId) {
@@ -155,32 +192,35 @@ export async function getFileFromS3(req, userId) {
     const fileRecord = await prisma.supporting_documents.findFirst({
       where: {
         created_by: userId.toString(),
-        is_deleted: false
+        is_deleted: false,
       },
       select: {
         document_id: true,
         document_path: true,
         document_name: true,
         is_deleted: true,
-      }
+      },
     });
 
     if (!fileRecord) {
-      throw new APIError(STATUS_CODES.NOT_FOUND, RESPONSE_MESSAGES.ERROR.FILE_NOT_FOUND);
+      throw new APIError(
+        STATUS_CODES.NOT_FOUND,
+        RESPONSE_MESSAGES.ERROR.FILE_NOT_FOUND
+      );
     }
 
-    logger.info("Document detail fetched successfully.")
+    logger.info("Document detail fetched successfully.");
     const fileKey = fileRecord.document_path;
     const getObjectParams = {
       Bucket: process.env.AWS_BUCKET_NAME,
       Key: fileKey,
     };
 
-    logger.info("Fetching File from S3 bucket.")
+    logger.info("Fetching File from S3 bucket.");
     const command = new GetObjectCommand(getObjectParams);
     const data = await s3Client.send(command);
-    const fileName = fileKey.split('/').pop();
-    logger.info("File fetched successfully from S3 bucket.")
+    const fileName = fileKey.split("/").pop();
+    logger.info("File fetched successfully from S3 bucket.");
 
     return { data: data.Body, fileName };
   } catch (error) {
@@ -202,7 +242,10 @@ export async function insertTypeOfWork(req, userId, reqBody) {
     // Insert segment data
     for (const [typeOfWork, workData] of Object.entries(reqBody)) {
       if (!ALLOWED_TYPES_OF_WORK.includes(typeOfWork)) {
-        throw new APIError(STATUS_CODES.BAD_REQUEST, `Invalid typeOfWork: ${typeOfWork}`);
+        throw new APIError(
+          STATUS_CODES.BAD_REQUEST,
+          `Invalid typeOfWork: ${typeOfWork}`
+        );
       }
 
       // Fetch the type_of_work ID from the database based on the typeOfWork
@@ -213,19 +256,29 @@ export async function insertTypeOfWork(req, userId, reqBody) {
       });
 
       if (!typeOfWorkRecord) {
-        throw new APIError(STATUS_CODES.NOT_FOUND, `type_of_work ${typeOfWork} not found in database`);
+        throw new APIError(
+          STATUS_CODES.NOT_FOUND,
+          `type_of_work ${typeOfWork} not found in database`
+        );
       }
       const typeOfWorkId = typeOfWorkRecord.ID;
-
 
       if (Array.isArray(workData)) {
         // Dynamically handle the insertion for segment or blackSpot based on the typeOfWork
         workData.forEach((item) => {
-          if (item.typeOfForm === 'segment') {
-            const segmentData = getSegmentInsertData(item, typeOfWorkId, userId);
+          if (item.typeOfForm === "segment") {
+            const segmentData = getSegmentInsertData(
+              item,
+              typeOfWorkId,
+              userId
+            );
             dataToInsert.push(segmentData);
-          } else if (item.typeOfForm === 'blackSpot') {
-            const blackSpotData = getBlackSpotInsertData(item, typeOfWorkId, userId);
+          } else if (item.typeOfForm === "blackSpot") {
+            const blackSpotData = getBlackSpotInsertData(
+              item,
+              typeOfWorkId,
+              userId
+            );
 
             dataToInsert.push(blackSpotData);
           }
@@ -243,7 +296,6 @@ export async function insertTypeOfWork(req, userId, reqBody) {
   }
 }
 export const deleteFileService = async (id) => {
-
   const result = await prisma.supporting_documents.findUnique({
     where: {
       document_id: id,
@@ -253,16 +305,22 @@ export const deleteFileService = async (id) => {
     return { alreadyDeleted: true };
   }
   if (!result) {
-    throw new APIError(STATUS_CODES.NOT_FOUND, RESPONSE_MESSAGES.ERROR.FILE_NOT_FOUND);
+    throw new APIError(
+      STATUS_CODES.NOT_FOUND,
+      RESPONSE_MESSAGES.ERROR.FILE_NOT_FOUND
+    );
   }
   const params = {
     Bucket: process.env.AWS_BUCKET_NAME,
     Key: result.document_path,
-  }
+  };
   // delete file from s3
   const s3result = await s3Client.send(new DeleteObjectCommand(params));
   if (s3result.$metadata.httpStatusCode !== 204) {
-    throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.REQUEST_PROCESSING_ERROR)
+    throw new APIError(
+      STATUS_CODES.BAD_REQUEST,
+      RESPONSE_MESSAGES.ERROR.REQUEST_PROCESSING_ERROR
+    );
   }
   const deletedResult = await prisma.supporting_documents.update({
     where: {
@@ -272,19 +330,22 @@ export const deleteFileService = async (id) => {
       is_deleted: true,
     },
   });
-  return deletedResult
-}
+  return deletedResult;
+};
 
 export const getAllImplementationModes = async () => {
   const allModes = await prisma.ucc_implementation_mode.findMany();
-  return allModes
+  return allModes;
 };
 export const insertContractDetails = async (req) => {
   const { shortName, piu, implementationId, schemeId, contractName } = req.body;
-  console.log(req.body, "req.body")
+  console.log(req.body, "req.body");
   const userId = req.user?.user_id;
   if (!userId) {
-    throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
+    throw new APIError(
+      STATUS_CODES.BAD_REQUEST,
+      RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND
+    );
   }
   const result = await prisma.ucc_master.create({
     data: {
@@ -294,14 +355,14 @@ export const insertContractDetails = async (req) => {
       scheme_id: schemeId,
       created_by: userId,
       status: "Draft",
-      project_name: contractName
+      project_name: contractName,
     },
     select: {
-      ucc_id: true
-    }
+      ucc_id: true,
+    },
   });
 
-  console.log(result, "result")
+  console.log(result, "result");
 
   if (piu?.length) {
     await prisma.ucc_piu.createMany({
@@ -313,5 +374,110 @@ export const insertContractDetails = async (req) => {
     });
   }
   return result;
+};
+export const basicDetailsOnReviewPage = async () => {
+  try {
+    const uccRecord = await prisma.ucc_master.findUnique({
+      where: { ucc_id: 1 },
+      select: {
+        contract_name: true,
+        short_name: true,
+        implementation_mode: true,
+        contract_length: true,
+        created_by: true,
+        piu_id: true, // This comes directly from ucc_master
+        ml_states: {
+          select: {
+            state_name: true,
+          },
+        },
+        scheme_master: {
+          select: {
+            scheme_name: true,
+          },
+        },
+        or_office_master: {
+          select: {
+            office_name: true,
+          },
+        },
+        ucc_implementation_mode: {
+          select: {
+            mode_name: true,
+          },
+        },
+      },
+    });
 
-}
+    if (!uccRecord) {
+      return {
+        status: false,
+        message: "UCC record not found",
+        data: null,
+      };
+    }
+
+    // Get piu_id directly from uccRecord
+    const piuIds = uccRecord.piu_id || [];
+
+    // Fetch details of these piu_ids from or_office_master
+    const piuDetails = await prisma.or_office_master.findMany({
+      where: {
+        office_id: { in: piuIds },
+      },
+      select: {
+        office_id: true,
+        office_name: true,
+      },
+    });
+
+    const type_of_work = await prisma.ucc_type_of_work_location.findMany({
+      where: {
+        user_id: uccRecord.created_by,
+      },
+      select: {
+        type_of_issue: true,
+        start_distance_km: true,
+        start_distance_metre: true,
+        end_distance_km: true,
+        end_distance_metre: true,
+        start_distance_km: true,
+      },
+    });
+    // const supporting_documents = await prisma.supporting_documents.findMany({
+    //   where: {
+    //     user_id: uccRecord.created_by,
+    //   },
+    //   select: {
+    //     type_of_issue: true,
+    //     start_distance_km: true,
+    //     start_distance_metre: true,
+    //     end_distance_km: true,
+    //     end_distance_metre: true,
+    //     start_distance_km: true,
+    //   },
+    // });
+
+    // Prepare the final response
+    const data = {
+      contract_name: uccRecord.contract_name,
+      short_name: uccRecord.short_name,
+      implementation_mode: uccRecord.implementation_mode,
+      contract_length: uccRecord.contract_length,
+      piu_details: piuDetails, // Details of each piu_id
+      ml_states: uccRecord.ml_states.state_name.scheme_name,
+      scheme_master: uccRecord.scheme_master.scheme_name,
+      or_office_master: uccRecord.or_office_master.office_name,
+      type_of_work: type_of_work,
+      supporting_documents: supporting_documents
+    };
+    return data;
+  } catch (error) {
+    console.error("Error fetching UCC record:", error);
+    return {
+      status: false,
+      message: "An error occurred while fetching UCC record",
+      data: null,
+    };
+  }
+};
