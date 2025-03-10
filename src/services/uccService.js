@@ -564,7 +564,7 @@ export const getcontractListService = async (req) => {
 
 
 export const basicDetailsOnReviewPage = async () => {
-  try {
+  try { 
     const uccRecord = await prisma.ucc_master.findUnique({
       where: { ucc_id: 1 },
       select: {
