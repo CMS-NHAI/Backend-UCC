@@ -42,7 +42,7 @@ export const getTypeOfWork = async (req, res) => {
     const typeOfWork = await prisma.type_of_work.findMany({
       select: {
         ID: true,
-        Name_of_Work: true
+        name_of_work: true
       },
       orderBy: {
         ID: 'asc'
