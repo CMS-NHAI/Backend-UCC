@@ -14,7 +14,7 @@ import {
   getBlackSpotInsertData,
   getSegmentInsertData,
 } from "../utils/uccUtil.js";
-import { ALLOWED_TYPES_OF_WORK } from "../constants/stringConstant.js";
+import { ALLOWED_TYPES_OF_WORK, STRING_CONSTANT } from "../constants/stringConstant.js";
 import { STATUS } from "../constants/appConstants.js";
 
 export const uploadFileService = async (req, res) => {
@@ -235,7 +235,7 @@ export async function insertTypeOfWork(req, userId, reqBody) {
     const dataToInsert = [];
 
     // Insert segment data
-    for (const [typeOfWork, workData] of Object.entries(reqBody)) {
+    for (const [typeOfWork, workData] of Object.entries(reqBody.typeOfWorks)) {
       if (!ALLOWED_TYPES_OF_WORK.includes(typeOfWork)) {
         throw new APIError(
           STATUS_CODES.BAD_REQUEST,
@@ -285,7 +285,19 @@ export async function insertTypeOfWork(req, userId, reqBody) {
       data: dataToInsert,
     });
 
-    return result;
+    logger.info("Type of work created successfully.");
+
+    const uccId = await prisma.ucc_master.create({
+      data: {
+        usc: reqBody.usc,
+        status: STRING_CONSTANT.DRAFT
+      },
+      select: {
+        ucc_id: true
+      }
+    });
+
+    return { uccId: uccId.ucc_id };
   } catch (err) {
     throw err;
   }
@@ -332,6 +344,7 @@ export const getAllImplementationModes = async () => {
   const allModes = await prisma.ucc_implementation_mode.findMany();
   return allModes;
 };
+
 export const insertContractDetails = async (req) => {
   const { shortName, piu, implementationId, schemeId, contractName, roId, stateId, contractLength } = req.body;
   const userId = req.user?.user_id;
@@ -454,7 +467,6 @@ export async function getMultipleFileFromS3(req, userId) {
 }
 
 export const deleteMultipleFileService = async (ids) => {
-
   if (!Array.isArray(ids) || ids.length === 0) {
     throw new APIError(STATUS_CODES.BAD_REQUEST, 'No file IDs provided for deletion.');
   }
