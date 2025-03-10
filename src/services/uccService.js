@@ -549,10 +549,10 @@ export const getcontractListService = async (req) => {
 
 }
 
-export const basicDetailsOnReviewPage = async () => {
+export const basicDetailsOnReviewPage = async (ucc_id) => {
   try {
     const uccRecord = await prisma.ucc_master.findUnique({
-      where: { ucc_id: 1 },
+      where: { ucc_id: ucc_id },
       select: {
         contract_name: true,
         short_name: true,
@@ -618,19 +618,6 @@ export const basicDetailsOnReviewPage = async () => {
         start_distance_km: true,
       },
     });
-    // const supporting_documents = await prisma.supporting_documents.findMany({
-    //   where: {
-    //     user_id: uccRecord.created_by,
-    //   },
-    //   select: {
-    //     type_of_issue: true,
-    //     start_distance_km: true,
-    //     start_distance_metre: true,
-    //     end_distance_km: true,
-    //     end_distance_metre: true,
-    //     start_distance_km: true,
-    //   },
-    // });
 
     // Prepare the final response
     const data = {
@@ -648,10 +635,6 @@ export const basicDetailsOnReviewPage = async () => {
     return data;
   } catch (error) {
     console.error("Error fetching UCC record:", error);
-    return {
-      status: false,
-      message: "An error occurred while fetching UCC record",
-      data: null,
-    };
+   throw error
   }
 };
