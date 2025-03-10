@@ -6,6 +6,7 @@ import APIError from '../utils/apiError.js';
 import { prisma } from '../config/prismaClient.js';
 import logger from "../utils/logger.js";
 import { getFileFromS3, insertTypeOfWork,uploadFileService, deleteFileService, getAllImplementationModes, uploadMultipleFileService,getcontractListService,basicDetailsOnReviewPage } from '../services/uccService.js';
+import { STATUS } from '../constants/appConstants.js';
 // import uccService from '../services/uccService.js';
 
 /**
@@ -401,7 +402,15 @@ export const getuserUccDetails = async (req, res) => {
 
 export const getBasicDetailsOfReviewPage = async (req,res, next) => {
   try {
-      const basicDetails = await basicDetailsOnReviewPage();
+    const ucc_id = parseInt(req.query.ucc_id)
+    if(!ucc_id){
+      res.status(STATUS_CODES.BAD_REQUEST).json({
+        status: false,
+        message: "Please provide the ucc id",
+        data: null,
+      }); 
+    }
+      const basicDetails = await basicDetailsOnReviewPage(ucc_id);
       res.status(STATUS_CODES.OK).json({
         status: true,
         message: "",
