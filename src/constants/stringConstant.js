@@ -7,6 +7,7 @@ export const STRING_CONSTANT = Object.freeze({
     MORTH: "MORTH",
     ALL: "ALL",
     RO: "RO-",
+    DRAFT: "DRAFT"
 });
 
 export const ALLOWED_TYPES_OF_WORK = Object.freeze([
