@@ -387,32 +387,7 @@ export async function getStretchDetails(req, stretchId) {
         }
         const stretchData = stretchDetails[0];
 
-        logger.info("Fetching Stretches PIU and RO details.");
-        const uccSegments = await prisma.UCCSegments.findMany({
-            where: {
-                StretchID: stretchId,
-            },
-            select: {
-                StretchID: true,
-                PIU: true,
-                RO: true,
-                UCC: true,
-            },
-        });
-
-        if (uccSegments.length === 0) {
-            throw new APIError(STATUS_CODES.NOT_FOUND, RESPONSE_MESSAGES.ERROR.NO_STRETCH_FOUND_FOR_ID);
-        }
-        logger.info("Stretche PIU and RO details fetched successfully.");
-
-        const stretchPiuRos = { piu: [], ro: [] };
-
-        uccSegments.forEach((segment) => {
-            const ro = segment.RO;
-            stretchPiuRos.piu.push(segment.PIU); // Append the segment.PIU value
-            stretchPiuRos.ro.push(ro ? ro.split(STRING_CONSTANT.RO)[1] : ro); // Split and append to the ro array
-        });
-
+        const stretchPiuRos = await getStretchPiuRoAndState([stretchId]);
         stretchData.piu = stretchPiuRos.piu.join();
         stretchData.ro = stretchPiuRos.ro.join();
         return stretchData;
@@ -426,6 +401,40 @@ export async function getStretchDetails(req, stretchId) {
         });
         throw error;
     }
+}
+
+export async function getStretchPiuRoAndState(stretchIds,) {
+    logger.info("Fetching Stretches PIU and RO details.");
+    const uccSegments = await prisma.UCCSegments.findMany({
+        where: {
+            StretchID: {
+                in: stretchIds
+            },
+        },
+        select: {
+            StretchID: true,
+            PIU: true,
+            RO: true,
+            UCC: true,
+            State: true
+        },
+    });
+
+    if (uccSegments.length === 0) {
+        throw new APIError(STATUS_CODES.NOT_FOUND, RESPONSE_MESSAGES.ERROR.NO_STRETCH_FOUND_FOR_ID);
+    }
+    logger.info("Stretche PIU and RO details fetched successfully.");
+
+    const stretchPiuRos = { piu: [], ro: [], state: [] };
+
+    uccSegments.forEach((segment) => {
+        const ro = segment.RO;
+        stretchPiuRos.piu.push(segment.PIU);
+        stretchPiuRos.ro.push(ro ? ro.split(STRING_CONSTANT.RO)[1] : ro);
+        stretchPiuRos.state.push(segment.State);
+    });
+
+    return stretchPiuRos;
 }
 
 async function getUserStretchIds(userId) {
