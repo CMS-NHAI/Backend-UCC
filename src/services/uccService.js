@@ -144,6 +144,7 @@ export const uploadMultipleFileService = async (req, res) => {
 
     const savedFile = await prisma.supporting_documents.create({
       data: {
+        ucc_id:req.body.ucc_id,
         document_type: "pdf",
         document_name: file.originalname,
         document_path: params.Key,
@@ -456,6 +457,7 @@ export async function getMultipleFileFromS3(req, userId) {
     const fileRecords = await prisma.supporting_documents.findMany({
       where: {
         created_by: userId.toString(),
+        ucc_id: req.params.ucc_id,
         is_deleted: false,
       },
       select: {
@@ -613,8 +615,6 @@ export const getcontractListService = async (req) => {
   return finalContractList;
 
 }
-
-
 
 export const basicDetailsOnReviewPage = async () => {
   try {
