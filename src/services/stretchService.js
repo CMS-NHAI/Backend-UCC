@@ -508,7 +508,6 @@ export async function myStretchExportData(req, userId) {
             Corridor: record.corridors
         }));
     } catch (error) {
-        console.log("ERRRRRRRRRRR :::::::::::: ", error);
         throw error;
     }
 }

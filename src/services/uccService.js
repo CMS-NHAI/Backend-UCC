@@ -351,6 +351,7 @@ export async function insertTypeOfWork(req, userId, reqBody) {
       state: stretchStatePiuRoData.state.join()
     };
   } catch (err) {
+    console.log("ERRRRRRRRRRR :::::::::::: ", err);
     logger.error(`Error in insertTypeOfWork: ${err.message}`);
     throw err;
   }
