@@ -1,9 +1,8 @@
-export function getSegmentInsertData(segment, typeOfWork, userId) {
+export function getSegmentInsertData(segment, typeOfWork, userId, typeOfIssue, uccId) {
     const {
         startChainage,
         endChainage,
         endLane,
-        typeOfForm,
     } = segment;
     return {
         type_of_work: typeOfWork,
@@ -16,18 +15,17 @@ export function getSegmentInsertData(segment, typeOfWork, userId) {
         end_distance_km: endChainage.kilometer,
         end_distance_metre: endChainage.meter,
         lane: endLane,
-        // ucc: 'some-unique-id',
-        type_of_issue: typeOfForm,
+        ucc: uccId ? uccId : null,
+        type_of_issue: typeOfIssue,
         status: 1,
         user_id: userId
     };
 }
 
-export function getBlackSpotInsertData(blackSpot, typeOfWork, userId) {
+export function getBlackSpotInsertData(blackSpot, typeOfWork, userId, typeOfIssue, uccId) {
     const {
         chainage,
         endLane,
-        typeOfForm,
     } = blackSpot;
 
     return {
@@ -37,8 +35,8 @@ export function getBlackSpotInsertData(blackSpot, typeOfWork, userId) {
         start_distance_km: chainage.kilometer,
         start_distance_metre: chainage.meter,
         lane: endLane,
-        // ucc: 'some-unique-id',
-        type_of_issue: typeOfForm,
+        ucc: uccId ? uccId : null,
+        type_of_issue: typeOfIssue,
         status: 1,
         user_id: userId
     };
@@ -57,3 +55,9 @@ export function getPhaseNameBeforeParentheses(phase) {
     const match = phase.match(/^(.*?)(\s*\(.*\))?$/); // Capture everything before the parentheses (if they exist)
     return match ? match[1].trim() : phase;
 }
+
+export function calculateSegmentLength(startChainage, endChainage) {
+    const kmDifference = endChainage.kilometer - startChainage.kilometer;
+    const meterDifference = endChainage.meter - startChainage.meter;
+    return kmDifference + meterDifference / 1000;  // Convert meters to kilometers
+  }
