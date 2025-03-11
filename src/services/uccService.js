@@ -14,7 +14,7 @@ import {
   getBlackSpotInsertData,
   getSegmentInsertData,
 } from "../utils/uccUtil.js";
-import { ALLOWED_TYPES_OF_WORK } from "../constants/stringConstant.js";
+import { ALLOWED_TYPES_OF_WORK, STRING_CONSTANT } from "../constants/stringConstant.js";
 import { STATUS } from "../constants/appConstants.js";
 
 export const uploadFileService = async (req, res) => {
@@ -235,7 +235,7 @@ export async function insertTypeOfWork(req, userId, reqBody) {
     const dataToInsert = [];
 
     // Insert segment data
-    for (const [typeOfWork, workData] of Object.entries(reqBody)) {
+    for (const [typeOfWork, workData] of Object.entries(reqBody.typeOfWorks)) {
       if (!ALLOWED_TYPES_OF_WORK.includes(typeOfWork)) {
         throw new APIError(
           STATUS_CODES.BAD_REQUEST,
@@ -285,7 +285,19 @@ export async function insertTypeOfWork(req, userId, reqBody) {
       data: dataToInsert,
     });
 
-    return result;
+    logger.info("Type of work created successfully.");
+
+    const uccId = await prisma.ucc_master.create({
+      data: {
+        usc: reqBody.usc,
+        status: STRING_CONSTANT.DRAFT
+      },
+      select: {
+        ucc_id: true
+      }
+    });
+
+    return { uccId: uccId.ucc_id };
   } catch (err) {
     throw err;
   }
@@ -332,6 +344,7 @@ export const getAllImplementationModes = async () => {
   const allModes = await prisma.ucc_implementation_mode.findMany();
   return allModes;
 };
+
 export const insertContractDetails = async (req) => {
   const { shortName, piu, implementationId, schemeId, contractName, roId, stateId, contractLength } = req.body;
   const userId = req.user?.user_id;
@@ -454,7 +467,6 @@ export async function getMultipleFileFromS3(req, userId) {
 }
 
 export const deleteMultipleFileService = async (ids) => {
-
   if (!Array.isArray(ids) || ids.length === 0) {
     throw new APIError(STATUS_CODES.BAD_REQUEST, 'No file IDs provided for deletion.');
   }
@@ -549,75 +561,10 @@ export const getcontractListService = async (req) => {
 
 }
 
-export const updateContractDetailService = async (req) => {
-
-  const { shortName, piu, implementationId, schemeId, contractName, roId, stateId, contractLength } = req.body;
-  const userId = req.user?.user_id;
-  const ucc_id = req.body?.ucc_id
-  if (!ucc_id) {
-    throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
-  }
-
-  const existingContract = await prisma.ucc_master.findFirst({
-    where: {
-      ucc_id: ucc_id,
-    },
-  });
-
-  if (!existingContract) {
-    throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.CONTRACT_NOT_FOUND);
-  }
-
-  const result = await prisma.ucc_master.update({
-    where: {
-      ucc_id: ucc_id,
-    },
-    data: {
-      short_name: shortName,
-      piu_id: piu,
-      implementation_mode_id: implementationId,
-      scheme_id: schemeId,
-      updated_by: userId,
-      project_name: contractName,
-      ro_id: roId,
-      state_id: stateId,
-      contract_length: contractLength,
-    },
-  });
-
-  // if (piu?.length > 0) {
-  //   try {
-  //     const piuData = piu.map((piu_id) => ({
-  //       ucc_id: result.ucc_id,
-  //       piu_id,
-  //       updated_by: userId,
-  //     }));
-
-  //     const updateResult = await prisma.ucc_piu.updateMany({
-  //       where: {
-  //         piu_id: {
-  //           in: piu,
-  //         },
-  //       },
-  //       data: piuData,
-  //     });
-
-  //     console.log('Update successful:', updateResult);
-  //   } catch (error) {
-  //     console.error('Error updating piu records:', error);
-  //   }
-  // } else {
-  //   console.log('No piu ids provided to update.');
-  // }
-
-
-  return result;
-
-}
 
 
 export const basicDetailsOnReviewPage = async () => {
-  try {
+  try { 
     const uccRecord = await prisma.ucc_master.findUnique({
       where: { ucc_id: 1 },
       select: {
