@@ -1,17 +1,19 @@
 import { STATUS_CODES } from '../constants/statusCodeConstants.js';
 import { prisma } from '../config/prismaClient.js';
+import { getUccLogService } from '../services/uccLogService.js';
 
 export const getUccLogList = async (req, res) => {
     try {
         const userId = req.user?.user_id;
-        const uccLogData = await prisma.ucc_change_log.findMany({
-            where: {
-                created_by: userId,
+        const feature_module = req.params.feature_module
+        console.log("req.query.page ===>>>>", req.query.page)
+        console.log("req.query.pageSize ===>>>>", req.query.pageSize)
+        const page = parseInt(req.query.page) || 1;
+        const pageSize = parseInt(req.query.pageSize) || 10;
 
-            },
-        });
-        // If no records found
-        if (!uccLogData || uccLogData.length === 0) {
+        const uccLogDatas = await getUccLogService(req, userId, page, pageSize,  feature_module)
+       
+        if (!uccLogDatas || uccLogDatas.length === 0) {
             return res.status(STATUS_CODES.OK).json({
                 success: false,
                 status: STATUS_CODES.OK,
@@ -24,7 +26,7 @@ export const getUccLogList = async (req, res) => {
             success: true,
             status: STATUS_CODES.OK,
             message: 'Ucc log records retrieved successfully',
-            data: uccLogData
+            data: uccLogDatas
         });
 
     } catch (error) {
