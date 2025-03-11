@@ -425,13 +425,14 @@ export async function getStretchPiuRoAndState(stretchIds,) {
     }
     logger.info("Stretche PIU and RO details fetched successfully.");
 
-    const stretchPiuRos = { piu: [], ro: [], state: [] };
+    const stretchPiuRos = { piu: [], ro: [], state: [], stretchId: [] };
 
     uccSegments.forEach((segment) => {
         const ro = segment.RO;
         stretchPiuRos.piu.push(segment.PIU);
         stretchPiuRos.ro.push(ro ? ro.split(STRING_CONSTANT.RO)[1] : ro);
         stretchPiuRos.state.push(segment.State);
+        stretchPiuRos.stretchId.push(segment.StretchID);
     });
 
     return stretchPiuRos;

@@ -250,6 +250,17 @@ export async function insertTypeOfWork(req, userId, reqBody) {
 
     const stretchStatePiuRoData = await getStretchPiuRoAndState(stretchUsc);
 
+    const stretchRecords = await prisma.Stretches.findMany({
+      where: {
+        StretchID: { in: stretchStatePiuRoData.stretchId }
+      },
+      select: {
+        ProjectName: true,
+      },
+    });
+
+    const projectNames = stretchRecords.map(record => record.ProjectName);
+
     for (const work of typeOfWorks) {
       const { workType, segment, blackSpot } = work;
       workTypes.push(workType);
@@ -276,7 +287,7 @@ export async function insertTypeOfWork(req, userId, reqBody) {
 
       if (Array.isArray(segment)) {
         const segmentNamePromises = segment.map(async (item, index) => {
-          const segmentName = `${typeOfWorkRecord.name_of_work} on ${stretchUsc} from ${item.startChainage.kilometer} + ${item.startChainage.meter} to ${item.endChainage.kilometer} + ${item.endChainage.meter}`;
+          const segmentName = `${typeOfWorkRecord.name_of_work} on ${projectNames.join()} from ${item.startChainage.kilometer} + ${item.startChainage.meter} to ${item.endChainage.kilometer} + ${item.endChainage.meter}`;
 
           resultName += segmentName;
           if (index < segment.length - 1 || (blackSpot && blackSpot.length > 0)) {
@@ -295,7 +306,7 @@ export async function insertTypeOfWork(req, userId, reqBody) {
 
       if (Array.isArray(blackSpot)) {
         const blackSpotNamePromises = blackSpot.map(async (item, index) => {
-          const blackSpotName = `${typeOfWorkRecord.name_of_work} on ${stretchUsc} from ${item.chainage.kilometer} + ${item.chainage.meter}`;
+          const blackSpotName = `${typeOfWorkRecord.name_of_work} on ${projectNames.join()} from ${item.chainage.kilometer} + ${item.chainage.meter}`;
 
           resultName += blackSpotName;
           if (index < blackSpot.length - 1) {
@@ -330,7 +341,7 @@ export async function insertTypeOfWork(req, userId, reqBody) {
 
     const formattedContractLength = (totalContractLength).toFixed(2);
 
-    return { 
+    return {
       uccId,
       generatedName: resultName,
       contractLength: `${formattedContractLength} Km`,
@@ -539,7 +550,7 @@ export const deleteMultipleFileService = async (ids) => {
       };
 
       // Delete the file from S3
-     const s3result = await s3Client.send(new DeleteObjectCommand(params));
+      const s3result = await s3Client.send(new DeleteObjectCommand(params));
 
       if (s3result.$metadata.httpStatusCode !== 204) {
         deletionResults.push({ id, error: 'Failed to delete file from S3' });
@@ -606,7 +617,7 @@ export const getcontractListService = async (req) => {
 
 
 export const basicDetailsOnReviewPage = async () => {
-  try { 
+  try {
     const uccRecord = await prisma.ucc_master.findUnique({
       where: { ucc_id: 1 },
       select: {
@@ -674,7 +685,7 @@ export const basicDetailsOnReviewPage = async () => {
         start_distance_km: true,
       },
     });
-   
+
     const data = {
       contract_name: uccRecord.contract_name,
       short_name: uccRecord.short_name,
