@@ -5,7 +5,7 @@ import { errorResponse } from '../helpers/errorHelper.js';
 import APIError from '../utils/apiError.js';
 import { prisma } from '../config/prismaClient.js';
 import logger from "../utils/logger.js";
-import { getFileFromS3, insertTypeOfWork,uploadFileService, deleteFileService, getAllImplementationModes, uploadMultipleFileService,getcontractListService,basicDetailsOnReviewPage } from '../services/uccService.js';
+import { getFileFromS3, insertTypeOfWork,uploadFileService, deleteFileService, getAllImplementationModes, uploadMultipleFileService,getcontractListService,basicDetailsOnReviewPage,getSupportingDocuments } from '../services/uccService.js';
 import { STATUS } from '../constants/appConstants.js';
 // import uccService from '../services/uccService.js';
 
@@ -360,7 +360,13 @@ export const getFile = async (req, res) => {
   try {
     logger.info("UccController :: method: getFile.");
     const userId = req.user?.user_id;
-    const response = await getFileFromS3(req, userId);
+    const ucc_id = req.user?.ucc_id;
+    let response
+    if(ucc_id){
+      response = await getSupportingDocuments(req, userId,ucc_id);
+    }else{
+      response = await getFileFromS3(req, userId);
+    }
     res.setHeader(HEADER_CONSTANTS.CONTENT_TYPE, HEADER_CONSTANTS.KML_CONTENT_TYPE);
     res.setHeader(HEADER_CONSTANTS.CONTENT_DISPOSITION, `attachment; filename="${response.fileName}"`);
     response.data.pipe(res);
@@ -405,15 +411,17 @@ export const getuserUccDetails = async (req, res) => {
 
 export const getBasicDetailsOfReviewPage = async (req,res, next) => {
   try {
-    const ucc_id = parseInt(req.query.ucc_id)
-    if(!ucc_id){
+    const id = req.query.id
+    const userId = req.user?.user_id;
+
+    if(!id){
       res.status(STATUS_CODES.BAD_REQUEST).json({
         status: false,
         message: "Please provide the ucc id",
         data: null,
       }); 
     }
-      const basicDetails = await basicDetailsOnReviewPage(ucc_id);
+      const basicDetails = await basicDetailsOnReviewPage(id, userId);
       res.status(STATUS_CODES.OK).json({
         status: true,
         message: "",
