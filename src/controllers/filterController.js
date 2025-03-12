@@ -70,6 +70,7 @@ export const getFilterData = async (req, res) => {
         });
 
     }catch(error){
+        console.log(error)
         return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
             success: false,
             status: STATUS_CODES.INTERNAL_SERVER_ERROR,
