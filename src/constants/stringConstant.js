@@ -11,7 +11,9 @@ export const STRING_CONSTANT = Object.freeze({
     TRUE: "true",
     MY_STRETCHES: "MyStretches",
     COMMA: ", ",
-    EMPTY: ""
+    EMPTY: "",
+    AWARDED:"awarded",
+    CONTRACT_DETAILS: "ContractDetails",
 });
 
 export const ALLOWED_TYPES_OF_WORK = Object.freeze([

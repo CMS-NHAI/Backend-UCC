@@ -24,7 +24,6 @@ export const exportToCSV = async (res, data,filename="users", headers = null) =>
 
         Promise.all[await res.setHeader("Content-Type", "text/csv"),
         await res.setHeader("Content-Disposition", `attachment; filename=${filename}.csv`)];
-
         const csvStream = format({ headers: headers.map(h => h.title) });
 
         csvStream.pipe(res);
@@ -39,6 +38,6 @@ export const exportToCSV = async (res, data,filename="users", headers = null) =>
 
         csvStream.end();
     } catch(error) {
-        console.log(error, "error")
+        console.log(error)
     }
 };
