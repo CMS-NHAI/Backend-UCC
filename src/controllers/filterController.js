@@ -52,7 +52,7 @@ export const getFilterData = async (req, res) => {
         //     },
         //   });
         const corridorsList = await prisma.$queryRaw`
-  SELECT DISTINCT "CorridorName" FROM "Corridors"
+  SELECT DISTINCT "CorridorName" FROM "nhai_gis"."Corridors"
 `;
 
         //   const corridorsList = await prisma.Corridors.findMany({
