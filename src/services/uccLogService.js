@@ -46,7 +46,7 @@ export const getUccLogService = async (req, userId, ucc_id, page, pageSize, feat
 
     const whereCondition = {
         updated_by: userId,
-        ucc_id: ucc_id,
+        ucc_id: parseInt(ucc_id),
         ...(feature_module ? { feature_module: feature_module } : {}),
     };
 
