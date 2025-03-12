@@ -42,8 +42,8 @@ export const addUccLog = async (req, res) => {
 export const getUccLogList = async (req, res) => {
     try {
         const userId = req.user?.user_id;
-        const feature_module = req.params.feature_module
-        const ucc_id = req.params.ucc_id
+        const feature_module = req.query.feature_module
+        const ucc_id = req.query.ucc_id
         const page = parseInt(req.query.page) || 1;
         const pageSize = parseInt(req.query.pageSize) || 10;
 
