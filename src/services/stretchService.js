@@ -519,7 +519,6 @@ export async function myStretchExportData(req, userId) {
 }
 
 export async function exportMystretchesData(req, userId, res) {
-    console.log("sfdjkljfdjkl;jgfx")
     const stretchDetails = await myStretchExportData(req, userId);
     const headers = [
         { id: 'USC', title: 'USC' },

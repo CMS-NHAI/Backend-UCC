@@ -21,6 +21,7 @@ import { getStretchPiuRoAndState } from "./stretchService.js";
 import { exportToCSV } from "../utils/exportUtil.js";
 
 export const uploadFileService = async (req, res) => {
+  
   await new Promise((resolve, reject) => {
     upload.single("file")(req, res, (err) => {
       if (err) {
@@ -34,6 +35,9 @@ export const uploadFileService = async (req, res) => {
       resolve();
     });
   });
+
+  const draftUccId = req.body.draftUccId;
+  const stretchUsc = req.body.stretchUsc;
 
   const user_id = req.user?.user_id;
   if (!user_id) {
@@ -66,18 +70,7 @@ export const uploadFileService = async (req, res) => {
 
   const command = new PutObjectCommand(params);
 
-  const [uploadFileResult, savedFile] = await Promise.all([
-    s3Client.send(command),
-    prisma.supporting_documents.create({
-      data: {
-        document_type: req.body.document_type,
-        document_name: req.file.originalname,
-        document_path: params.Key,
-        created_by: user_id.toString(),
-        status: "Draft",
-      },
-    }),
-  ]);
+  const uploadFileResult = await s3Client.send(command);
 
   if (
     !uploadFileResult ||
@@ -89,7 +82,33 @@ export const uploadFileService = async (req, res) => {
     );
   }
 
-  return savedFile;
+  let uccId = draftUccId;
+  
+  if (uccId == "null" || !uccId) {
+    console.log("hadfghjkl;jhg ", stretchUsc)
+    console.log("hadfghjkl;jhg ", stretchUsc)
+    console.log("hadfghjkl;jhg ", stretchUsc)
+    const dbUccId = await prisma.ucc_master.create({
+      data: {
+        stretch_id: JSON.parse(stretchUsc),
+        status: STRING_CONSTANT.DRAFT,
+      },
+      select: { ucc_id: true },
+    });
+    uccId = dbUccId.ucc_id;
+  }
+  const savedFile = await prisma.supporting_documents.create({
+    data: {
+      document_type: req.body.document_type,
+      document_name: req.file.originalname,
+      document_path: params.Key,
+      created_by: user_id.toString(),
+      status: "Draft",
+      ucc_id: uccId.toString()
+    },
+  });
+
+  return {uccId: JSON.parse(uccId), savedFile};
 };
 
 export const uploadMultipleFileService = async (req, res) => {
