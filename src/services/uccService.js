@@ -599,7 +599,11 @@ export const getcontractListService = async (req,res) => {
 
   let where = {};
 
-  if(stretchIds.length == 0){
+  if(stretchIds.length > 0 && piu?.length == 0 && ro?.length == 0 && program?.length == 0 && phase?.length == 0 && typeOfWork?.length == 0 && scheme?.length == 0 && corridor?.length == 0){
+    where.StretchID = {
+      in: stretchIds,
+    }
+  }else{
     getUserUccs = getUserUccs.map((item) => {
       return item.ucc_id;
     });
@@ -607,20 +611,21 @@ export const getcontractListService = async (req,res) => {
     where.UCC = {
       in: stretchIds,
     }
-  }else{
-    where.StretchID = {
-      in: stretchIds,
-    }
   }
 
-  if (piu?.length) where.PIU = { in: piu };
-  if (ro?.length) where.RO = { in: ro };
-  if (program?.length) where.ProgramName = { in: program };
-  if (phase?.length) where.PhaseCode = { in: phase };
-  if (typeOfWork?.length) where.TypeofWork = { in: typeOfWork };
-  if (scheme?.length) where.Scheme = { in: scheme };
-  if (corridor?.length) where.CorridorCode = { in: corridor };
- 
+  let orConditions = [];
+
+if (piu?.length) orConditions.push({ PIU: { in: piu } });
+if (ro?.length) orConditions.push({ RO: { in: ro } });
+if (program?.length) orConditions.push({ ProgramName: { in: program } });
+if (phase?.length) orConditions.push({ PhaseCode: { in: phase } });
+if (typeOfWork?.length) orConditions.push({ TypeofWork: { in: typeOfWork } });
+if (scheme?.length) orConditions.push({ Scheme: { in: scheme } });
+if (corridor?.length) orConditions.push({ CorridorCode: { in: corridor } });
+
+if( orConditions.length > 0){
+  where ={ OR: orConditions } 
+}
 const [result, totalCount] = await Promise.all([
     prisma.UCCSegments.findMany({
       where,
@@ -633,7 +638,11 @@ const [result, totalCount] = await Promise.all([
         UCC: true,
         TotalLength: true,
         RevisedLength: true,
-        CorridorCode:true
+        CorridorCode:true,
+        RO:true,
+        Scheme:true,
+        PhaseCode:true,
+        ProgramName:true,
       },
       skip,
       take: limit,
