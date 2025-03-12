@@ -7,15 +7,54 @@ export const getFilterData = async (req, res) => {
 
         let filters = {};
 
-        const distinctValues = await prisma.UCCSegments.findMany({
-            distinct: ['RO'], // Replace with your column name
+        const roList = await prisma.UCCSegments.findMany({
+            distinct: ['RO'], 
             select: {
-              RO: true, // Ensure you select only the distinct column
+              RO: true, 
             },
           });
-          
-          console.log(distinctValues);
 
+          const piuList = await prisma.UCCSegments.findMany({
+            distinct: ['PIU'], 
+            select: {
+              PIU: true, 
+            },
+          });
+
+          const schemesList = await prisma.scheme_master.findMany({
+            select: {
+              scheme_name: true,
+            }
+          });
+
+          const phaseList = await prisma.project_phase_master.findMany({
+            select: {
+                project_phase_name: true,
+              },
+        });
+
+        const programList = await prisma.program_master.findMany({
+            select: {
+                program_name: true,
+              },
+        });
+
+        const typeOfWorkList = await prisma.type_of_work.findMany({
+            select: {
+              name_of_work: true
+            }
+          });
+
+          const corridorsList = await prisma.UCCSegments.findMany({
+            distinct: ['CorridorName'], 
+            select: {
+                CorridorName: true, 
+            },
+          });
+
+          
+          filters={...piuList, ...typeOfWorkList, ...roList}
+       console.log(filters)
 
     }catch(error){
 
