@@ -38,6 +38,7 @@ export const addUccLogService = async (userId, ucc_id, data) => {
 
 export const getUccLogService = async (req, userId, ucc_id, page, pageSize, feature_module) => {
 
+    
     const skip = (page - 1) * pageSize;
     const take = pageSize;
     const totalCount = await uccLogCount(userId, feature_module);
