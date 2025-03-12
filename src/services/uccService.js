@@ -694,26 +694,27 @@ const [result, totalCount] = await Promise.all([
   };
 }
 
-export const basicDetailsOnReviewPage = async (ucc_id) => {
-
+export const basicDetailsOnReviewPage = async (id, userId) => {
   try {
-    const uccRecord = await prisma.ucc_master.findUnique({
-      where: { ucc_id: ucc_id },
+    const uccRecord = await prisma.ucc_master.findFirst({
+      where: { id: id }, // Use `findFirst()` instead of `findUnique()`
       select: {
+        ucc_id: true,
         contract_name: true,
         short_name: true,
         implementation_mode: true,
         contract_length: true,
         created_by: true,
         piu_id: true, // This comes directly from ucc_master
-        ml_states: {
-          select: {
-            state_name: true,
-          },
-        },
+        // state_id: true,
         scheme_master: {
           select: {
             scheme_name: true,
+          },
+        },
+        ml_states: {
+          select: {
+            state_name: true,
           },
         },
         or_office_master: {
@@ -728,13 +729,38 @@ export const basicDetailsOnReviewPage = async (ucc_id) => {
         },
       },
     });
+    
+    
+    // const uccRecord = await prisma.ucc_master.findUnique({
+    //   where: { id: id },
+    //   select: {
+    //     contract_name: true,
+    //     short_name: true,
+    //     implementation_mode: true,
+    //     contract_length: true,
+    //     created_by: true,
+    //     piu_id: true, // This comes directly from ucc_master
+    //     state_id: true,
+    //     scheme_master: {
+    //       select: {
+    //         scheme_name: true,
+    //       },
+    //     },
+    //     or_office_master: {
+    //       select: {
+    //         office_name: true,
+    //       },
+    //     },
+    //     ucc_implementation_mode: {
+    //       select: {
+    //         mode_name: true,
+    //       },
+    //     },
+    //   },
+    // });
 
     if (!uccRecord) {
-      return {
-        status: false,
-        message: "UCC record not found",
-        data: null,
-      };
+      return null
     }
 
     // Get piu_id directly from uccRecord
@@ -765,16 +791,31 @@ export const basicDetailsOnReviewPage = async (ucc_id) => {
       },
     });
 
+    const fileRecord = await prisma.supporting_documents.findFirst({
+      where: {
+        created_by: userId.toString(),
+        is_deleted: false,
+        ucc_id: id
+      },
+      select: {
+        document_id: true,
+        document_path: true,
+        document_name: true,
+        is_deleted: true,
+      },
+    });
+    // Prepare the final response
     const data = {
       contract_name: uccRecord.contract_name,
       short_name: uccRecord.short_name,
       implementation_mode: uccRecord.implementation_mode,
       contract_length: uccRecord.contract_length,
       piu_details: piuDetails, // Details of each piu_id
-      ml_states: uccRecord.ml_states.state_name.scheme_name,
+      state: uccRecord.ml_states.state_name,
       scheme_master: uccRecord.scheme_master.scheme_name,
       or_office_master: uccRecord.or_office_master.office_name,
       type_of_work: type_of_work,
+      supporting_documents: fileRecord
       // supporting_documents: supporting_documents
     };
     return data;
@@ -784,3 +825,53 @@ export const basicDetailsOnReviewPage = async (ucc_id) => {
   }
 };
 
+export async function getSupportingDocuments(req, userId, ucc_id) {
+  try {
+    logger.info("Fetching document detail from DB");
+    const fileRecord = await prisma.supporting_documents.findMany({
+      where: {
+        created_by: userId.toString(),
+        is_deleted: false,
+        ucc_id: ucc_id
+      },
+      select: {
+        document_id: true,
+        document_path: true,
+        document_name: true,
+        is_deleted: true,
+        document_type: true
+      },
+    });
+
+    if (!fileRecord) {
+      throw new APIError(
+        STATUS_CODES.NOT_FOUND,
+        RESPONSE_MESSAGES.ERROR.FILE_NOT_FOUND
+      );
+    }
+
+    logger.info("Document detail fetched successfully.");
+    const fileKey = fileRecord.document_path;
+    const getObjectParams = {
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: fileKey,
+    };
+
+    logger.info("Fetching File from S3 bucket.");
+    const command = new GetObjectCommand(getObjectParams);
+    const data = await s3Client.send(command);
+    const fileName = fileKey.split("/").pop();
+    logger.info("File fetched successfully from S3 bucket.");
+
+    return { data: data.Body, fileName };
+  } catch (error) {
+    logger.error({
+      message: RESPONSE_MESSAGES.ERROR.REQUEST_PROCESSING_ERROR,
+      error: error,
+      url: req.url,
+      method: req.method,
+      time: new Date().toISOString(),
+    });
+    throw err;
+  }
+}
