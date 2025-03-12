@@ -1,6 +1,7 @@
 import { prisma } from "../config/prismaClient.js";
 import { RESPONSE_MESSAGES } from "../constants/responseMessages.js";
 import { STATUS_CODES } from "../constants/statusCodeConstants.js";
+import APIError from "../utils/apiError.js";
 
 export const addUccLogService = async (userId, ucc_id, changed_field, new_value) => {
 
@@ -26,7 +27,7 @@ export const addUccLogService = async (userId, ucc_id, changed_field, new_value)
 
 }
 
-export const getUccLogService = async (req, userId, page, pageSize, feature_module) => {
+export const getUccLogService = async (req, userId, ucc_id, page, pageSize, feature_module) => {
 
     const skip = (page - 1) * pageSize;
     const take = pageSize;
@@ -36,6 +37,7 @@ export const getUccLogService = async (req, userId, page, pageSize, feature_modu
 
     const whereCondition = {
         updated_by: userId,
+        ucc_id: ucc_id,
         ...(feature_module ? { feature_module: feature_module } : {}),
     };
 
