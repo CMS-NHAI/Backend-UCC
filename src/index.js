@@ -20,7 +20,7 @@ app.use(express.json());
 
 app.use("/backend/ucc", centralizedRoutes);
 
-app.get('/backend', (req, res) => {
+app.get('/backend/ucc', (req, res) => {
   res.status(STATUS_CODES.OK).send({
     message: `Welcome to UCC-Service Datalake 3.0 ${APP_CONSTANTS.APP_NAME} v${APP_CONSTANTS.VERSION}`,
   });
