@@ -714,7 +714,7 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
         ucc_id: true,
         contract_name: true,
         short_name: true,
-        implementation_mode: true,
+        implementation_mode_id: true,
         contract_length: true,
         created_by: true,
         piu_id: true, // This comes directly from ucc_master
@@ -820,7 +820,7 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
     const data = {
       contract_name: uccRecord.contract_name,
       short_name: uccRecord.short_name,
-      implementation_mode: uccRecord.implementation_mode,
+      implementation_mode: uccRecord.ucc_implementation_mode.mode_name,
       contract_length: uccRecord.contract_length,
       piu_details: piuDetails, // Details of each piu_id
       state: uccRecord.ml_states.state_name,
