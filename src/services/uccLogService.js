@@ -24,7 +24,8 @@ export const addUccLogService = async (userId, ucc_id, data) => {
         created_by: userId,
         created_at: new Date(),
         updated_by: userId,
-        updated_at: new Date()
+        updated_at: new Date(),
+        feature_module:change.feature_module
     }));
 
     const result = await prisma.ucc_change_log.createMany({
@@ -45,7 +46,7 @@ export const getUccLogService = async (req, userId, ucc_id, page, pageSize, feat
 
     const whereCondition = {
         updated_by: userId,
-        ucc_id: ucc_id,
+        ucc_id: parseInt(ucc_id),
         ...(feature_module ? { feature_module: feature_module } : {}),
     };
 
