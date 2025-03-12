@@ -45,6 +45,13 @@ export const getFilterData = async (req, res) => {
             }
           });
 
+          const corridorList = await prisma.Corridors.findMany({
+            distinct: ['CorridorName'], 
+            select: {
+                CorridorName: true, 
+            },
+          });
+
         //   const corridorsList = await prisma.Corridors.findMany({
         //     distinct: ['CorridorName'], 
         //     select: {
@@ -60,7 +67,7 @@ export const getFilterData = async (req, res) => {
             programList,
             phaseList,
             schemesList,
-           // corridorsList
+            corridorList
           }
           return res.status(STATUS_CODES.OK).json({
             success: true,
