@@ -5,7 +5,7 @@ export const getFilterData = async (req, res) => {
     try {
         const { piu, work_type, ro, program, phase, scheme, corridor, page = 1, limit = 10, sortBy = "name", order = "asc" } = req.query;
 
-        let filters = {};
+        
 
         const roList = await prisma.UCCSegments.findMany({
             distinct: ['RO'], 
@@ -53,10 +53,29 @@ export const getFilterData = async (req, res) => {
           });
 
           
-          filters={...piuList, ...typeOfWorkList, ...roList}
-       console.log(filters)
+          const filterData = {
+            piuList,
+            typeOfWorkList,
+            roList,
+            programList,
+            phaseList,
+            schemesList,
+            corridorsList
+          }
+          return res.status(STATUS_CODES.OK).json({
+            success: true,
+            status: STATUS_CODES.OK,
+            message: 'All filter records retrieved successfully',
+            data: filterData
+        });
 
     }catch(error){
+        return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            status: STATUS_CODES.INTERNAL_SERVER_ERROR,
+            message: error.message || 'Internal server error',
+            data: []
+        });
 
     }
 
