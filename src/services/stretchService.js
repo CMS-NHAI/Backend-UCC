@@ -6,6 +6,7 @@ import APIError from "../utils/apiError.js";
 import logger from "../utils/logger.js";
 import { STRING_CONSTANT } from "../constants/stringConstant.js";
 import { getPhaseNameBeforeParentheses } from "../utils/uccUtil.js";
+import { exportToCSV } from "../utils/exportUtil.js";
 
 /**
  * Fetches the required stretch data by querying a GIS database and splitting a stretch line based on the provided chainages.
@@ -76,7 +77,19 @@ async function nhaiStretchCount(stretchIds) {
 async function nhaiStretchDetails(page, pageSize, stretchIds) {
     const totalCount = await nhaiStretchCount(stretchIds);
     const totalPages = Math.ceil(totalCount / pageSize);
-    // If the current page is greater than the total pages, adjusting it
+    const pagination = {
+        page: 1,
+        pageSize,
+        totalCount,
+        totalPages,
+    };
+    if (page > totalPages) {
+        return {
+            message: "Page does not exist",
+            data: [],
+            pagination
+        };
+    }
     const currentPage = page > totalPages ? totalPages : page;
 
     const stretches = await prisma.$queryRaw`
@@ -85,8 +98,6 @@ async function nhaiStretchDetails(page, pageSize, stretchIds) {
                 public.ST_AsGeoJSON(s.geom) AS geojson,
                 public.ST_Length(s.geom::public.geography) / 1000 AS length_km,
                 s."PhaseCode",
-                -- s."CorridorCode",
-                -- s."StretchCode",
                 s."NH",
                 s."ProgramName",
                 s."ProjectName",
@@ -165,15 +176,10 @@ async function nhaiStretchDetails(page, pageSize, stretchIds) {
             type: STRING_CONSTANT.NHAI
         };
     });
-
+    pagination.page = currentPage;
     return {
         data,
-        pagination: {
-            page: currentPage,
-            pageSize,
-            totalCount,
-            totalPages,
-        }
+        pagination
     }
 }
 
@@ -510,4 +516,18 @@ export async function myStretchExportData(req, userId) {
     } catch (error) {
         throw error;
     }
+}
+
+export async function exportMystretchesData(req, userId, res) {
+    console.log("sfdjkljfdjkl;jgfx")
+    const stretchDetails = await myStretchExportData(req, userId);
+    const headers = [
+        { id: 'USC', title: 'USC' },
+        { id: 'StretchName', title: 'Stretch Name' },
+        { id: 'Length', title: 'Length' },
+        { id: 'Phase', title: 'Phase' },
+        { id: 'Corridor', title: 'Corridor' }
+    ];
+
+    return await exportToCSV(res, stretchDetails, STRING_CONSTANT.MY_STRETCHES, headers);
 }

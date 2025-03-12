@@ -5,7 +5,7 @@
 import { Readable } from "stream";
 import { STATUS_CODES } from "../constants/statusCodeConstants.js";
 import { errorResponse } from "../helpers/errorHelper.js";
-import { fetchRequiredStretchData, getStretchDetails, getUserStretches, myStretchExportData } from "../services/stretchService.js";
+import { exportMystretchesData, fetchRequiredStretchData, getStretchDetails, getUserStretches, myStretchExportData } from "../services/stretchService.js";
 import logger from "../utils/logger.js";
 import { HEADER_CONSTANTS } from "../constants/headerConstant.js";
 import { STRING_CONSTANT } from "../constants/stringConstant.js";
@@ -65,29 +65,23 @@ export async function fetchMyStretches(req, res) {
         const pageSize = parseInt(req.query.pageSize) || 10;
         const { projectType, exports } = req.query;
 
-        const response = await getUserStretches(req, userId, page, pageSize, projectType);
-
-
         if (exports == STRING_CONSTANT.TRUE) {
-            const stretchDetails = await myStretchExportData(req, userId);
-            const headers = [
-                { id: 'USC', title: 'USC' },
-                { id: 'StretchName', title: 'Stretch Name' },
-                { id: 'Length', title: 'Length' },
-                { id: 'Phase', title: 'Phase' },
-                { id: 'Corridor', title: 'Corridor' }
-            ];
-
-            return await exportToCSV(res, stretchDetails, STRING_CONSTANT.MY_STRETCHES, headers);
+            if (projectType.toUpperCase() === STRING_CONSTANT.NHAI) {
+               return await exportMystretchesData(req, userId, res);
+            } else if(projectType.toUpperCase() === STRING_CONSTANT.MORTH) {
+                return res.status(STATUS_CODES.OK).send();
+            } else {
+                return await exportMystretchesData(req, userId, res);
+            }
         }
-
-
+        const response = await getUserStretches(req, userId, page, pageSize, projectType);
         const readable = new Readable({
             read() {
                 this.push('{ "success": true, "data": [');
 
                 // Stream the data in chunks
                 let first = true;
+                const message = response.message;
                 response.data.forEach((item) => {
                     if (first) {
                         first = false;
@@ -99,6 +93,9 @@ export async function fetchMyStretches(req, res) {
 
                 this.push('], "pagination": ');
                 this.push(JSON.stringify(response.pagination));
+                if(message) {
+                    this.push(`,"message": "${message}"`);
+                }
                 this.push('}');
                 this.push(null);
             }
