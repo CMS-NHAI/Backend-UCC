@@ -45,7 +45,7 @@ export const getFilterData = async (req, res) => {
             }
           });
 
-          const corridorsList = await prisma.UCCSegments.findMany({
+          const corridorsList = await prisma.Corridors.findMany({
             distinct: ['CorridorName'], 
             select: {
                 CorridorName: true, 
