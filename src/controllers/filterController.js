@@ -46,7 +46,7 @@ export const getFilterData = async (req, res) => {
           });
 
           const corridorList = await prisma.Corridors.findMany({
-            distinct: ['CorridorName'], 
+            //distinct: ['CorridorName'], 
             select: {
                 CorridorName: true, 
             },
