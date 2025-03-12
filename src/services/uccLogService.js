@@ -60,10 +60,11 @@ export const getUccLogService = async (req, userId, ucc_id, page, pageSize, feat
             changed_at: true,
             created_at: true,
             updated_by: true,
+            updated_at: true,
             feature_module: true,
             user_master: {
                 select: {
-                    user_id: true, // Assuming `user_id` is in `user_master`
+                    user_id: true,
                     name: true,
                     first_name: true,
                     middle_name: true,
