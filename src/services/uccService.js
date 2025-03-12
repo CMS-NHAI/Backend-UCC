@@ -11,11 +11,13 @@ import { STATUS_CODES } from "../constants/statusCodeConstants.js";
 import APIError from "../utils/apiError.js";
 import logger from "../utils/logger.js";
 import {
+  calculateSegmentLength,
   getBlackSpotInsertData,
   getSegmentInsertData,
 } from "../utils/uccUtil.js";
-import { ALLOWED_TYPES_OF_WORK, STRING_CONSTANT } from "../constants/stringConstant.js";
+import { ALLOWED_TYPES_OF_WORK, STRING_CONSTANT, TYPE_OF_ISSUES } from "../constants/stringConstant.js";
 import { STATUS } from "../constants/appConstants.js";
+import { getStretchPiuRoAndState } from "./stretchService.js";
 
 export const uploadFileService = async (req, res) => {
   await new Promise((resolve, reject) => {
@@ -142,6 +144,7 @@ export const uploadMultipleFileService = async (req, res) => {
 
     const savedFile = await prisma.supporting_documents.create({
       data: {
+        ucc_id:req.body.ucc_id,
         document_type: "pdf",
         document_name: file.originalname,
         document_path: params.Key,
@@ -233,75 +236,127 @@ export async function getFileFromS3(req, userId) {
 export async function insertTypeOfWork(req, userId, reqBody) {
   try {
     const dataToInsert = [];
+    const { stretchUsc, draftUccId, typeOfWorks } = reqBody;
+    const workTypes = [];
+    let resultName = '';
+    let totalContractLength = 0;
 
-    // Insert segment data
-    for (const [typeOfWork, workData] of Object.entries(reqBody.typeOfWorks)) {
-      if (!ALLOWED_TYPES_OF_WORK.includes(typeOfWork)) {
+    if (!Array.isArray(stretchUsc) || stretchUsc.length === 0) {
+      throw new APIError(STATUS_CODES.BAD_REQUEST, 'Invalid or missing stretchUsc array.');
+    }
+
+    if (!Array.isArray(typeOfWorks) || typeOfWorks.length === 0) {
+      throw new APIError(STATUS_CODES.BAD_REQUEST, 'Invalid or missing typeOfWorks array.');
+    }
+
+    const stretchStatePiuRoData = await getStretchPiuRoAndState(stretchUsc);
+
+    const stretchRecords = await prisma.Stretches.findMany({
+      where: {
+        StretchID: { in: stretchStatePiuRoData.stretchId }
+      },
+      select: {
+        ProjectName: true,
+      },
+    });
+
+    const projectNames = stretchRecords.map(record => record.ProjectName);
+
+    for (const work of typeOfWorks) {
+      const { workType, segment, blackSpot } = work;
+      workTypes.push(workType);
+
+      if (!ALLOWED_TYPES_OF_WORK.includes(workType)) {
         throw new APIError(
           STATUS_CODES.BAD_REQUEST,
-          `Invalid typeOfWork: ${typeOfWork}`
+          `Invalid workType: ${workType}`
         );
       }
 
-      // Fetch the type_of_work ID from the database based on the typeOfWork
       const typeOfWorkRecord = await prisma.type_of_work.findFirst({
-        where: {
-          name_of_work: typeOfWork,
-        },
+        where: { name_of_work: workType },
       });
 
       if (!typeOfWorkRecord) {
         throw new APIError(
           STATUS_CODES.NOT_FOUND,
-          `type_of_work ${typeOfWork} not found in database`
+          `type_of_work ${workType} not found in database`
         );
       }
+
       const typeOfWorkId = typeOfWorkRecord.ID;
 
-      if (Array.isArray(workData)) {
-        // Dynamically handle the insertion for segment or blackSpot based on the typeOfWork
-        workData.forEach((item) => {
-          if (item.typeOfForm === "segment") {
-            const segmentData = getSegmentInsertData(
-              item,
-              typeOfWorkId,
-              userId
-            );
-            dataToInsert.push(segmentData);
-          } else if (item.typeOfForm === "blackSpot") {
-            const blackSpotData = getBlackSpotInsertData(
-              item,
-              typeOfWorkId,
-              userId
-            );
+      if (Array.isArray(segment)) {
+        const segmentNamePromises = segment.map(async (item, index) => {
+          const segmentName = `${typeOfWorkRecord.name_of_work} on ${projectNames.join()} from ${item.startChainage.kilometer} + ${item.startChainage.meter} to ${item.endChainage.kilometer} + ${item.endChainage.meter}`;
 
-            dataToInsert.push(blackSpotData);
+          resultName += segmentName;
+          if (index < segment.length - 1 || (blackSpot && blackSpot.length > 0)) {
+            resultName += " and ";
           }
+
+          const segmentLength = calculateSegmentLength(item.startChainage, item.endChainage);
+          totalContractLength += segmentLength;
+
+          const segmentData = await getSegmentInsertData(item, typeOfWorkId, userId, TYPE_OF_ISSUES.SEGMENT, draftUccId);
+          return segmentData;
         });
+        const resolvedSegmentData = await Promise.all(segmentNamePromises);
+        dataToInsert.push(...resolvedSegmentData);
+      }
+
+      if (Array.isArray(blackSpot)) {
+        const blackSpotNamePromises = blackSpot.map(async (item, index) => {
+          const blackSpotName = `${typeOfWorkRecord.name_of_work} on ${projectNames.join()} from ${item.chainage.kilometer} + ${item.chainage.meter}`;
+
+          resultName += blackSpotName;
+          if (index < blackSpot.length - 1) {
+            resultName += " and ";
+          }
+
+          const blackSpotData = await getBlackSpotInsertData(item, typeOfWorkId, userId, TYPE_OF_ISSUES.BLACK_SPOT, draftUccId);
+          return blackSpotData;
+        });
+        const resolvedBlackSpotData = await Promise.all(blackSpotNamePromises);
+        dataToInsert.push(...resolvedBlackSpotData);
       }
     }
 
-    const result = await prisma.ucc_type_of_work_location.createMany({
+    await prisma.ucc_type_of_work_location.createMany({
       data: dataToInsert,
     });
 
     logger.info("Type of work created successfully.");
 
-    const uccId = await prisma.ucc_master.create({
-      data: {
-        usc: reqBody.usc,
-        status: STRING_CONSTANT.DRAFT
-      },
-      select: {
-        ucc_id: true
-      }
-    });
+    let uccId = draftUccId;
+    if (!draftUccId) {
+      const dbUccId = await prisma.ucc_master.create({
+        data: {
+          stretch_id: stretchUsc,
+          status: STRING_CONSTANT.DRAFT,
+        },
+        select: { ucc_id: true },
+      });
+      uccId = dbUccId.ucc_id;
+    }
 
-    return { uccId: uccId.ucc_id };
+    const formattedContractLength = (totalContractLength).toFixed(2);
+
+    return {
+      uccId,
+      generatedName: resultName,
+      contractLength: `${formattedContractLength} Km`,
+      piu: stretchStatePiuRoData.piu.join(),
+      ro: stretchStatePiuRoData.ro.join(),
+      state: stretchStatePiuRoData.state.join()
+    };
   } catch (err) {
+    console.log("ERRRRRRRRRRR :::::::::::: ", err);
+    logger.error(`Error in insertTypeOfWork: ${err.message}`);
     throw err;
   }
 }
+
 export const deleteFileService = async (id) => {
   const result = await prisma.supporting_documents.findUnique({
     where: {
@@ -403,6 +458,7 @@ export async function getMultipleFileFromS3(req, userId) {
     const fileRecords = await prisma.supporting_documents.findMany({
       where: {
         created_by: userId.toString(),
+        ucc_id: req.params.ucc_id,
         is_deleted: false,
       },
       select: {
@@ -497,7 +553,7 @@ export const deleteMultipleFileService = async (ids) => {
       };
 
       // Delete the file from S3
-     const s3result = await s3Client.send(new DeleteObjectCommand(params));
+      const s3result = await s3Client.send(new DeleteObjectCommand(params));
 
       if (s3result.$metadata.httpStatusCode !== 204) {
         deletionResults.push({ id, error: 'Failed to delete file from S3' });
@@ -562,6 +618,7 @@ export const getcontractListService = async (req) => {
 }
 
 export const basicDetailsOnReviewPage = async (ucc_id) => {
+
   try {
     const uccRecord = await prisma.ucc_master.findUnique({
       where: { ucc_id: ucc_id },
@@ -631,7 +688,6 @@ export const basicDetailsOnReviewPage = async (ucc_id) => {
       },
     });
 
-    // Prepare the final response
     const data = {
       contract_name: uccRecord.contract_name,
       short_name: uccRecord.short_name,

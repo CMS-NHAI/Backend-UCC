@@ -32,3 +32,8 @@ export const ALLOWED_TYPES_OF_WORK = Object.freeze([
     "MoRTH/State Project for Tolling Only",
     "Strengthening Under (OPBMC/PBMC)"
 ]);
+
+export const TYPE_OF_ISSUES = Object.freeze({
+    BLACK_SPOT: "Blackspot",
+    SEGMENT: "Segment"
+});
