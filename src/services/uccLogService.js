@@ -3,29 +3,37 @@ import { RESPONSE_MESSAGES } from "../constants/responseMessages.js";
 import { STATUS_CODES } from "../constants/statusCodeConstants.js";
 import APIError from "../utils/apiError.js";
 
-export const addUccLogService = async (userId, ucc_id, changed_field, new_value) => {
-
+export const addUccLogService = async (userId, ucc_id, data) => {
     if (!userId) {
         throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
     }
-    const result = await prisma.ucc_change_log.create({
-        data: {
-            ucc_id: ucc_id,
-            changed_field: changed_field,
-            new_value: new_value,
-            changed_by: userId,
-            changed_at: new Date(),
-            is_deleted: false,
-            created_by: userId,
-            created_at: new Date(),
-            updated_by: userId,
-            updated_at: new Date()
-        }
+
+    // Ensure 'data' is an array and not empty
+    if (!Array.isArray(data) || data.length === 0) {
+        throw new APIError(STATUS_CODES.BAD_REQUEST, "No data provided.");
+    }
+
+    // Prepare an array of log entries to be inserted
+    const logEntries = data.map(change => ({
+        ucc_id: ucc_id,
+        changed_field: change.changed_field,
+        new_value: change.new_value,
+        changed_by: userId,
+        changed_at: new Date(),
+        is_deleted: false,
+        created_by: userId,
+        created_at: new Date(),
+        updated_by: userId,
+        updated_at: new Date()
+    }));
+
+    const result = await prisma.ucc_change_log.createMany({
+        data: logEntries
     });
 
     return result;
+};
 
-}
 
 export const getUccLogService = async (req, userId, ucc_id, page, pageSize, feature_module) => {
 
