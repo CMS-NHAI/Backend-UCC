@@ -617,8 +617,7 @@ export const getcontractListService = async (req,res) => {
   });
 
   let where = {};
-
-  if(stretchIds.length > 0 && piu?.length == 0 && ro?.length == 0 && program?.length == 0 && phase?.length == 0 && typeOfWork?.length == 0 && scheme?.length == 0 && corridor?.length == 0){
+  if(stretchIds.length > 0 ){
     where.StretchID = {
       in: stretchIds,
     }
@@ -669,19 +668,27 @@ const [result, totalCount] = await Promise.all([
     prisma.UCCSegments.count({ where })
   ]);
 
-  // const strectchDetails = await prisma.Stretches.findMany({
-  //   where,
-  //   select: {
-  //     StretchID: true,
-  //     ProjectName: true,
-  //   },
-  // });
 
-  // console.log(strectchDetails, "strectchDetails");
-
+  const ids =await result.map((item) => { return item.StretchID; });
+  const strectchDetails = await prisma.Stretches.findMany({
+    where:{
+      StretchID: {
+        in: ids,
+    },
+  },
+    select: {
+      StretchID: true,
+      ProjectName: true,
+    },
+  });
+  const stretchMap = strectchDetails.reduce((acc, item) => {
+    acc[item.StretchID] = item.ProjectName;
+    return acc;
+  }, {});
 
   const finalContractList = await result.map((item) => {
     item.status = STRING_CONSTANT.AWARDED;
+    item.stretchName = stretchMap[item.StretchID];
     return item
   });
 
