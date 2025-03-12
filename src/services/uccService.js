@@ -18,6 +18,7 @@ import {
 import { ALLOWED_TYPES_OF_WORK, STRING_CONSTANT, TYPE_OF_ISSUES } from "../constants/stringConstant.js";
 import { STATUS } from "../constants/appConstants.js";
 import { getStretchPiuRoAndState } from "./stretchService.js";
+import { exportToCSV } from "../utils/exportUtil.js";
 
 export const uploadFileService = async (req, res) => {
   await new Promise((resolve, reject) => {
@@ -577,44 +578,92 @@ export const deleteMultipleFileService = async (ids) => {
   return deletionResults;
 };
 
-export const getcontractListService = async (req) => {
-  const { stretchIds, piu, ro, program, phase, typeOfWork, scheme, corridor } = req.body;
+export const getcontractListService = async (req,res) => {
+  let { stretchIds, piu, ro, program, phase, typeOfWork, scheme, corridor,page=1,limit=10,exports} = req.body;
   const userId = req.user?.user_id;
+   page = parseInt(page);
+   limit=parseInt(limit); 
+   const skip = (page - 1) * limit;
   if (!userId) {
     throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
   }
 
-  const result = await prisma.UCCSegments.findMany({
+  let getUserUccs = await prisma.ucc_user_mappings.findMany({
     where: {
-      StretchID: {
-        in: stretchIds,
-      },
-      ...(piu?.length ? { PIU: { in: piu } } : {}),
-      ...(ro?.length ? { RO: { in: ro } } : {}),
-      ...(program?.length ? { ProgramName: { in: program } } : {}),
-      ...(phase?.length ? { PhaseCode: { in: phase } } : {}),
-      ...(typeOfWork?.length ? { TypeofWork: { in: typeOfWork } } : {}),
-      ...(scheme?.length ? { Scheme: { in: scheme } } : {}),
-      ...(corridor?.length ? { CorridorID: { in: corridor } } : {}),
+      user_id: userId,
     },
-    distinct: ['UCC'],
     select: {
-      TypeofWork: true,
-      StretchID: true,
-      ProjectName: true,
-      PIU: true,
-      UCC: true,
-      TotalLength: true,
-      RevisedLength: true,
+      ucc_id: true,
     },
   });
 
+  let where = {};
+
+  if(stretchIds.length == 0){
+    getUserUccs = getUserUccs.map((item) => {
+      return item.ucc_id;
+    });
+    stretchIds = getUserUccs;
+    where.UCC = {
+      in: stretchIds,
+    }
+  }else{
+    where.StretchID = {
+      in: stretchIds,
+    }
+  }
+
+  if (piu?.length) where.PIU = { in: piu };
+  if (ro?.length) where.RO = { in: ro };
+  if (program?.length) where.ProgramName = { in: program };
+  if (phase?.length) where.PhaseCode = { in: phase };
+  if (typeOfWork?.length) where.TypeofWork = { in: typeOfWork };
+  if (scheme?.length) where.Scheme = { in: scheme };
+  if (corridor?.length) where.CorridorCode = { in: corridor };
+ 
+const [result, totalCount] = await Promise.all([
+    prisma.UCCSegments.findMany({
+      where,
+      distinct: ['UCC'],
+      select: {
+        TypeofWork: true,
+        StretchID: true,
+        ProjectName: true,
+        PIU: true,
+        UCC: true,
+        TotalLength: true,
+        RevisedLength: true,
+        CorridorCode:true
+      },
+      skip,
+      take: limit,
+    }),
+    prisma.UCCSegments.count({ where })
+  ]);
   const finalContractList = await result.map((item) => {
-    item.status = "awarded";
+    item.status = STRING_CONSTANT.AWARDED;
     return item
   });
-  return finalContractList;
 
+  if (exports) {
+              const headers = [
+                  { id: 'UCC', title: 'UCC' },
+                  { id: 'ProjectName', title: 'Contract Name' },
+                  { id: 'PIU', title: 'PIU' },
+                  { id: 'TypeofWork', title: 'Type of Work' },
+                  { id: 'TotalLength', title: 'Length' },
+                  { id: 'status', title: 'Status' }
+              ];
+  
+              return await exportToCSV(res, finalContractList, STRING_CONSTANT.CONTRACT_DETAILS,headers);
+          }
+  return {
+    page,
+    limit,
+    totalCount,
+    totalPages: Math.ceil(totalCount / limit),
+    data:finalContractList
+  };
 }
 
 export const basicDetailsOnReviewPage = async (ucc_id) => {

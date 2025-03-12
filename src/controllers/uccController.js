@@ -387,16 +387,19 @@ export const getuserUccDetails = async (req, res) => {
     
    const data = await getcontractListService(req, res);
 
+   if(!data){
+    return;
+   }
+
     return res.status(STATUS_CODES.OK).json({
       success: true,
       status: STATUS_CODES.OK,
       message: RESPONSE_MESSAGES.SUCCESS.CONTRACT_DETAILS_FETCHED,
       data,
-      contractCount: data.length
     });
 
   } catch (error) {
-    return await errorResponse(req, res, error);
+    return errorResponse(req, res, error);
   }
 }
 
