@@ -401,7 +401,13 @@ export const getuserUccDetails = async (req, res) => {
       success: true,
       status: STATUS_CODES.OK,
       message: RESPONSE_MESSAGES.SUCCESS.CONTRACT_DETAILS_FETCHED,
-      data,
+      data:data.finalContractList,
+      pagination: {
+        totalCount: data.totalCount,
+        page: data.page,
+        pageSize: data.limit,
+        totalPages: data.totalPages,
+      },
     });
 
   } catch (error) {

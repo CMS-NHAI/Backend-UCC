@@ -668,6 +668,18 @@ const [result, totalCount] = await Promise.all([
     }),
     prisma.UCCSegments.count({ where })
   ]);
+
+  // const strectchDetails = await prisma.Stretches.findMany({
+  //   where,
+  //   select: {
+  //     StretchID: true,
+  //     ProjectName: true,
+  //   },
+  // });
+
+  // console.log(strectchDetails, "strectchDetails");
+
+
   const finalContractList = await result.map((item) => {
     item.status = STRING_CONSTANT.AWARDED;
     return item
@@ -690,7 +702,7 @@ const [result, totalCount] = await Promise.all([
     limit,
     totalCount,
     totalPages: Math.ceil(totalCount / limit),
-    data:finalContractList
+    finalContractList
   };
 }
 
