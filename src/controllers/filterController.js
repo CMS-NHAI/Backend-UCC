@@ -45,12 +45,15 @@ export const getFilterData = async (req, res) => {
             }
           });
 
-          const corridorList = await prisma.Corridors.findMany({
-            //distinct: ['CorridorName'], 
-            select: {
-                CorridorName: true, 
-            },
-          });
+        //   const corridorList = await prisma.Corridors.findMany({
+        //     //distinct: ['CorridorName'], 
+        //     select: {
+        //         CorridorName: true, 
+        //     },
+        //   });
+        const corridorsList = await prisma.$queryRaw`
+  SELECT DISTINCT "CorridorName" FROM "Corridors"
+`;
 
         //   const corridorsList = await prisma.Corridors.findMany({
         //     distinct: ['CorridorName'], 
@@ -67,7 +70,7 @@ export const getFilterData = async (req, res) => {
             programList,
             phaseList,
             schemesList,
-            corridorList
+            corridorsList
           }
           return res.status(STATUS_CODES.OK).json({
             success: true,
