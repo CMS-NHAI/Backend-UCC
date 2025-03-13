@@ -17,7 +17,7 @@ export const saveContractDetails =async(req,res)=>{
     try {
       const data = await insertContractDetails(req);
   
-      res.status(STATUS_CODES.CREATED).json({
+      res.status(STATUS_CODES.OK).json({
         status: true,
         message: RESPONSE_MESSAGES.SUCCESS.CONTRACT_DETAILS_SAVED,
         data

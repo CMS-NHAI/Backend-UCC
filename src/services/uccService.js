@@ -388,14 +388,11 @@ export const deleteFileService = async (id) => {
       document_id: id,
     },
   });
+  if(!result){
+    throw new APIError(STATUS_CODES.NOT_FOUND, RESPONSE_MESSAGES.ERROR.FILE_NOT_FOUND);
+  }
   if (result.is_deleted == true) {
     return { alreadyDeleted: true };
-  }
-  if (!result) {
-    throw new APIError(
-      STATUS_CODES.NOT_FOUND,
-      RESPONSE_MESSAGES.ERROR.FILE_NOT_FOUND
-    );
   }
   const params = {
     Bucket: process.env.AWS_BUCKET_NAME,
@@ -426,51 +423,71 @@ export const getAllImplementationModes = async () => {
 };
 
 export const insertContractDetails = async (req) => {
-  const { shortName, piu, implementationId, schemeId, contractName, roId, stateId, contractLength } = req.body;
+  const { shortName, piu, implementationId, schemeId, contractName, roId, stateId, contractLength,uccId } = req.body;
   const userId = req.user?.user_id;
   if (!userId) {
     throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
   }
 
-  const existingContract = await prisma.ucc_master.findFirst({
+  const existingContract = await prisma.ucc_master.findUnique({
     where: {
-      created_by: userId,
+      ucc_id: uccId,
       status: STATUS.DRAFT,
     },
   });
 
-  if (existingContract) {
-    throw new APIError(STATUS_CODES.CONFLICT, RESPONSE_MESSAGES.ERROR.DRAFT_ALREADY_EXISTS);
+  if (!existingContract) {
+    throw new APIError(STATUS_CODES.CONFLICT, RESPONSE_MESSAGES.ERROR.CONTRACT_NOT_FOUND);
   }
 
-  const result = await prisma.ucc_master.create({
+  const result = await prisma.ucc_master.update({
+    where:{
+      ucc_id:uccId
+    },
     data: {
       short_name: shortName,
       piu_id: piu,
       implementation_mode_id: implementationId,
       scheme_id: schemeId,
-      created_by: userId,
+      updated_by: userId,
       status: STATUS.DRAFT,
       project_name: contractName,
       ro_id: roId,
       state_id: stateId,
-      contract_length: contractLength
-    },
-    select: {
-      ucc_id: true,
+      contract_length: contractLength,
+      updated_at:new Date()
     },
   });
-
-
-  if (piu?.length) {
-    await prisma.ucc_piu.createMany({
-      data: piu.map((piu_id) => ({
-        ucc_id: result.ucc_id,
-        piu_id,
-        created_by: userId,
-      })),
+if (piu?.length) {
+  for (const piu_id of piu) {
+    const existingPiu = await prisma.ucc_piu.findFirst({
+      where: {
+        ucc_id: uccId,
+        piu_id: piu_id,
+      },
     });
+
+    if (existingPiu) {
+      // Update the existing PIU record
+      await prisma.ucc_piu.update({
+        where: { id: existingPiu.id }, // Assuming `id` is the primary key of `ucc_piu`
+        data: {
+          updated_by: userId,
+          updated_at: new Date(),
+         },
+      });
+    } else {
+      // Create a new PIU record
+      await prisma.ucc_piu.create({
+        data: {
+          ucc_id: result.ucc_id,
+          piu_id,
+          created_by: userId,
+        },
+      });
+    }
   }
+}
   return result;
 
 }
