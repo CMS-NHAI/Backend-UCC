@@ -63,7 +63,7 @@ export const uploadFileService = async (req, res) => {
 
   const params = {
     Bucket: process.env.AWS_BUCKET_NAME,
-    Key: `uploads/${Date.now()}-${req.file.originalname}`,
+    Key: `${process.env.S3_MAIN_FOLDER}/${process.env.S3_SUB_FOLDER}/${Date.now()}-${req.file.originalname}`,
     Body: req.file.buffer,
     ContentType: req.file.mimetype,
   };
@@ -85,9 +85,7 @@ export const uploadFileService = async (req, res) => {
   let uccId = draftUccId;
   
   if (uccId == "null" || !uccId) {
-    console.log("hadfghjkl;jhg ", stretchUsc)
-    console.log("hadfghjkl;jhg ", stretchUsc)
-    console.log("hadfghjkl;jhg ", stretchUsc)
+   
     const dbUccId = await prisma.ucc_master.create({
       data: {
         stretch_id: JSON.parse(stretchUsc),
@@ -95,13 +93,16 @@ export const uploadFileService = async (req, res) => {
       },
       select: { ucc_id: true },
     });
+
     uccId = dbUccId.ucc_id;
   }
-  const savedFile = await prisma.supporting_documents.create({
+  const savedFile = await prisma.documents_master.create({
     data: {
       document_type: req.body.document_type,
       document_name: req.file.originalname,
       document_path: params.Key,
+      created_at: new Date(),
+      is_deleted:false,
       created_by: user_id.toString(),
       status: STRING_CONSTANT.DRAFT,
       ucc_id: uccId.toString()
@@ -150,7 +151,7 @@ export const uploadMultipleFileService = async (req, res) => {
   const uploadedFilesPromises = req.files.map(async (file) => {
     const params = {
       Bucket: process.env.AWS_BUCKET_NAME,
-      Key: `${process.env.FOLDER_ON_AWS_FOR_DOCUMENT}/${Date.now()}-${file.originalname}`,
+      Key: `${process.env.S3_MAIN_FOLDER}/${process.env.S3_SUB_FOLDER}/${Date.now()}-${file.originalname}`,
       Body: file.buffer,
       ContentType: file.mimetype,
     };

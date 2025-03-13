@@ -5,7 +5,7 @@ import { RESPONSE_MESSAGES } from "../constants/responseMessages.js";
 const storage = multer.memoryStorage(); // Store file in memory (use diskStorage if needed)
 
 const kmlFilter = (req, file, cb) => {
-  if (path.extname(file.originalname).toLowerCase() === ".kml" || file.mimetype === "application/vnd.google-earth.kml+xml") {
+  if (path.extname(file.originalname).toLowerCase() === ".kml" || path.extname(file.originalname).toLowerCase() === ".zip") {
     cb(null, true); // Accept the file
   } else {
     cb(new Error(RESPONSE_MESSAGES.ERROR.INVALID_FILE_TYPE), false); // Reject file
