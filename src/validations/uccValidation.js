@@ -189,3 +189,10 @@ export const contractValidationSchema = Joi.object({
   search: Joi.string().optional(), // Optional string
 });
 
+export const deleteFileValidationSchema = Joi.object({
+  id: Joi.number().integer().positive().required().strict().prefs({ convert: false }).messages({
+    "number.base": "ID must be a number.",
+    "number.positive": "ID must be a positive number.",
+    "any.required": "ID is required."
+  }),
+});

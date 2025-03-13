@@ -18,7 +18,8 @@ export const RESPONSE_MESSAGES = {
       NO_STRETCH_FOUND_FOR_ID: "No stretches found for the given Stretch ID",
       DRAFT_ALREADY_EXISTS:"A draft contract already exists for this user.",
       PAGE_DOES_NOT_EXIST: "Page does not exist",
-      UCC_LOG_NOT_FOUND: "No record found"
+      UCC_LOG_NOT_FOUND: "No record found",
+      PIU_ALREADY_EXISTS:"PIU already exists for this user."
     },
     SUCCESS: {
         status:true,
