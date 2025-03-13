@@ -3,7 +3,23 @@ import { saveContractDetails } from "../controllers/saveContractController.js";
 import validate from "../middlewares/validate.js";
 import { validateToken } from "../middlewares/validateToken.js";
 import { STRING_CONSTANT } from "../constants/stringConstant.js";
-import { getDistrict, getSchemes, getStates, getTypeOfWork, getUcc,insertTypeOfWorkController,uploadFile,deleteFile,getFile,getImplementationModes, getRos, getPIUByROId,getuserUccDetails,getBasicDetailsOfReviewPage} from "../controllers/uccController.js";
+import { getDistrict, 
+    getSchemes, 
+    getStates, 
+    getTypeOfWork, 
+    getUcc,
+    insertTypeOfWorkController,
+    uploadFile,
+    deleteFile,
+    getFile,
+    getImplementationModes, 
+    getRos, 
+    getPIUByROId,
+    getuserUccDetails,
+    getBasicDetailsOfReviewPage,
+    // getBasicDetailsOfReviewPageDocuments
+} 
+from "../controllers/uccController.js";
 import { getRequiredStretchParamsValidationSchema, getRequiredStretchQueryValidationSchema, typeOfWorkRequestBodySchema,saveContractDetailsSchema,contractValidationSchema } from "../validations/uccValidation.js";
 import { getChainageByUcc } from "../controllers/chainageController.js";
 
@@ -36,6 +52,7 @@ router.post('/getUccDetails',validateToken,validate(contractValidationSchema),ge
 
 
 router.get('/getBasicDetailsOfReviewPage',validateToken,getBasicDetailsOfReviewPage);
+// router.get('/getBasicDetailsOfReviewPageDocuments',validateToken,getBasicDetailsOfReviewPageDocuments );
 
 
 export default router;
