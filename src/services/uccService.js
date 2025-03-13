@@ -598,7 +598,7 @@ export const deleteMultipleFileService = async (ids) => {
 };
 
 export const getcontractListService = async (req,res) => {
-  let { stretchIds, piu, ro, program, phase, typeOfWork, scheme, corridor,page=1,limit=10,exports} = req.body;
+  let { stretchIds, piu, ro, program, phase, typeOfWork, scheme, corridor,page=1,limit=10,exports,search} = req.body;
   const userId = req.user?.user_id;
    page = parseInt(page);
    limit=parseInt(limit); 
@@ -606,22 +606,20 @@ export const getcontractListService = async (req,res) => {
   if (!userId) {
     throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
   }
-
-  let getUserUccs = await prisma.ucc_user_mappings.findMany({
-    where: {
-      user_id: userId,
-    },
-    select: {
-      ucc_id: true,
-    },
-  });
-
   let where = {};
   if(stretchIds.length > 0 ){
     where.StretchID = {
       in: stretchIds,
     }
   }else{
+    let getUserUccs = await prisma.ucc_user_mappings.findMany({
+      where: {
+        user_id: userId,
+      },
+      select: {
+        ucc_id: true,
+      },
+    });
     getUserUccs = getUserUccs.map((item) => {
       return item.ucc_id;
     });
@@ -629,6 +627,15 @@ export const getcontractListService = async (req,res) => {
     where.UCC = {
       in: stretchIds,
     }
+  }
+
+  if (search?.length > 0) {
+    where.OR = [
+      { ProjectName: { contains: search, mode: 'insensitive' } },
+      { PIU: { contains: search, mode: 'insensitive' } },
+      { UCC: { contains: search, mode: 'insensitive' } },
+      { TypeofWork: { contains: search, mode: 'insensitive' } },
+    ];
   }
 
   let orConditions = [];
