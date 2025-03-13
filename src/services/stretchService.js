@@ -162,26 +162,22 @@ async function nhaiStretchDetails(page, pageSize, stretchIds, req) {
         return acc;
     }, {});
 
-    const uccCounts = await prisma.UCCSegments.groupBy({
-        by: ['StretchID'],
-        _count: {
-            UCC: true,
-        },
-        where: {
-            StretchID: { in: stretchIds },
-        },
-    });
+    const uccCounts = await prisma.$queryRaw`
+        SELECT "StretchID", COUNT(DISTINCT "UCC") AS uniquecount
+        FROM "nhai_gis"."UCCSegments"
+        WHERE "StretchID" IN (${Prisma.join(stretchIds)})
+        GROUP BY "StretchID";
+    `;
 
     const data = stretches.map((item) => {
         const uniquePhases = Array.from(new Set(item.phases.map(getPhaseNameBeforeParentheses)));
         const uccCount = uccCounts.find(count => count.StretchID === item.StretchID);
         const uccData = uccSegmentsByStretch[item.StretchID] || { PIUs: [], RO: [], UCCs: [] };
-
         return {
             ...item,
             geojson: JSON.parse(item.geojson),
             phases: uniquePhases,
-            ucc_count: uccCount ? uccCount._count.UCC : 0,
+            ucc_count: uccCount ? Number(uccCount.uniquecount) : 0,
             PIU: uccData.PIUs.join(STRING_CONSTANT.COMMA) || null,
             RO: uccData.RO.join(STRING_CONSTANT.COMMA) || null,
             type: STRING_CONSTANT.NHAI

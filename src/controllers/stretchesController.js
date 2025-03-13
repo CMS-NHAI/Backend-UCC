@@ -66,7 +66,7 @@ export async function fetchMyStretches(req, res) {
         const pageSize = parseInt(reqBody.pageSize) || 10;
         const { projectType, exports } = reqBody;
 
-        if (exports == STRING_CONSTANT.TRUE) {
+        if (exports) {
             if (projectType.toUpperCase() === STRING_CONSTANT.NHAI) {
                return await exportMystretchesData(userId, res);
             } else if(projectType.toUpperCase() === STRING_CONSTANT.MORTH) {
