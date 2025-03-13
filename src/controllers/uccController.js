@@ -8,6 +8,7 @@ import logger from "../utils/logger.js";
 import { getFileFromS3, insertTypeOfWork,uploadFileService, deleteFileService, getAllImplementationModes, uploadMultipleFileService,getcontractListService,basicDetailsOnReviewPage,getSupportingDocuments } from '../services/uccService.js';
 import { STATUS } from '../constants/appConstants.js';
 // import uccService from '../services/uccService.js';
+// import { S3Client, GetObjectCommand } from  "@aws-sdk/client-s3";
 
 /**
  * Method : 
@@ -437,3 +438,65 @@ export const getBasicDetailsOfReviewPage = async (req,res, next) => {
   return await errorResponse(req, res, error);
   }
 };
+
+
+// export const getBasicDetailsOfReviewPageDocuments = async(req, res) => {
+//   try {
+//     const { userId, uccId } = req.params;
+//     logger.info(`Fetching document details for user: ${userId}, ucc_id: ${uccId}`);
+
+//     // Fetch files from DB
+//     const fileRecords = await prisma.supporting_documents.findMany({
+//       where: {
+//         created_by: userId.toString(),
+//         is_deleted: false,
+//         ucc_id: uccId,
+//       },
+//       select: {
+//         document_id: true,
+//         document_path: true,
+//         document_name: true,
+//         document_type: true,
+//       },
+//     });
+
+//     if (!fileRecords || fileRecords.length === 0) {
+//       return res.status(404).json({ success: false, message: "No files found for this user." });
+//     }
+
+//     // Fetch each file from S3
+//     const filesData = await Promise.all(
+//       fileRecords.map(async (file) => {
+//         const fileKey = file.document_path;
+//         const getObjectParams = {
+//           Bucket: process.env.AWS_BUCKET_NAME,
+//           Key: fileKey,
+//         };
+
+//         try {
+//           logger.info(`Fetching file from S3: ${fileKey}`);
+//           const command = new GetObjectCommand(getObjectParams);
+//           const data = await s3Client.send(command);
+
+//           return {
+//             document_id: file.document_id,
+//             fileName: file.document_name,
+//             documentType: file.document_type,
+//             fileUrl: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileKey}`,
+//             fileContent: await data.Body.transformToString('utf-8'), // Convert to string if needed
+//           };
+//         } catch (err) {
+//           logger.error(`Error fetching file from S3: ${fileKey}`, err);
+//           return { document_id: file.document_id, fileName: file.document_name, error: "File not found in S3" };
+//         }
+//       })
+//     );
+
+//     logger.info("Files fetched successfully.");
+//     res.json({ success: true, files: filesData });
+
+//   } catch (error) {
+//     logger.error("Error fetching user files", error);
+//     res.status(500).json({ success: false, message: "Error retrieving files", error: error.message });
+//   }
+// }

@@ -820,6 +820,7 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
         document_path: true,
         document_name: true,
         is_deleted: true,
+        document_type: true
       },
     });
     // Prepare the final response
