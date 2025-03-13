@@ -20,7 +20,8 @@ import { getDistrict,
     // getBasicDetailsOfReviewPageDocuments
 } 
 from "../controllers/uccController.js";
-import { getRequiredStretchParamsValidationSchema, getRequiredStretchQueryValidationSchema, typeOfWorkRequestBodySchema,saveContractDetailsSchema,contractValidationSchema } from "../validations/uccValidation.js";
+import { getRequiredStretchParamsValidationSchema, getRequiredStretchQueryValidationSchema, typeOfWorkRequestBodySchema,saveContractDetailsSchema,contractValidationSchema,deleteFileValidationSchema } from "../validations/uccValidation.js";
+
 import { getChainageByUcc } from "../controllers/chainageController.js";
 
 
@@ -46,7 +47,7 @@ router.post(
     validate(typeOfWorkRequestBodySchema),
     insertTypeOfWorkController
 );
-router.post('/deleteFile',validateToken,deleteFile);
+router.post('/deleteFile',validateToken,validate(deleteFileValidationSchema),deleteFile);
 router.post('/saveContractDetails',validateToken,validate(saveContractDetailsSchema),saveContractDetails);
 router.post('/getUccDetails',validateToken,validate(contractValidationSchema),getuserUccDetails);
 
