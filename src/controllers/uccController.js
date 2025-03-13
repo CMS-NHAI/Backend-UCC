@@ -417,7 +417,7 @@ export const getuserUccDetails = async (req, res) => {
 
 export const getBasicDetailsOfReviewPage = async (req,res, next) => {
   try {
-    const id = req.query.id
+    const id = req.query.id ? req.query.id.toString() : null;
     const userId = req.user?.user_id;
 
     if(!id){

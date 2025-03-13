@@ -756,35 +756,6 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
       },
     });
     
-    
-    // const uccRecord = await prisma.ucc_master.findUnique({
-    //   where: { id: id },
-    //   select: {
-    //     contract_name: true,
-    //     short_name: true,
-    //     implementation_mode: true,
-    //     contract_length: true,
-    //     created_by: true,
-    //     piu_id: true, // This comes directly from ucc_master
-    //     state_id: true,
-    //     scheme_master: {
-    //       select: {
-    //         scheme_name: true,
-    //       },
-    //     },
-    //     or_office_master: {
-    //       select: {
-    //         office_name: true,
-    //       },
-    //     },
-    //     ucc_implementation_mode: {
-    //       select: {
-    //         mode_name: true,
-    //       },
-    //     },
-    //   },
-    // });
-
     if (!uccRecord) {
       return null
     }
@@ -817,11 +788,11 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
       },
     });
 
-    const fileRecord = await prisma.supporting_documents.findFirst({
+    const fileRecord = await prisma.supporting_documents.findMany({
       where: {
-        created_by: userId.toString(),
+        created_by: uccRecord.created_by.toString(),
         is_deleted: false,
-        ucc_id: id
+        // ucc_id: id
       },
       select: {
         document_id: true,
@@ -840,7 +811,7 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
       state: uccRecord.ml_states.state_name,
       scheme_master: uccRecord.scheme_master.scheme_name,
       or_office_master: uccRecord.or_office_master.office_name,
-      type_of_work: type_of_work,
+      type_of_work: type_of_work?type_of_work: null,
       supporting_documents: fileRecord
       // supporting_documents: supporting_documents
     };
