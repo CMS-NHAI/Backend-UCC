@@ -1,4 +1,5 @@
 export const STATUS_CODES = Object.freeze({
+  SUCCESS:true,
   OK: 200,
   CREATED: 201,
   ACCEPTED: 202,

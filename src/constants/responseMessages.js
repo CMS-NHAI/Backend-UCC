@@ -17,15 +17,18 @@ export const RESPONSE_MESSAGES = {
       NO_STRETCH_FOUND: "No stretches found for the given UCCs",
       NO_STRETCH_FOUND_FOR_ID: "No stretches found for the given Stretch ID",
       DRAFT_ALREADY_EXISTS:"A draft contract already exists for this user.",
-      PAGE_DOES_NOT_EXIST: "Page does not exist"
+      PAGE_DOES_NOT_EXIST: "Page does not exist",
+      UCC_LOG_NOT_FOUND: "No record found"
     },
     SUCCESS: {
+        status:true,
         FILE_UPLOADED: "File uploaded successfully",
         FILE_FETCHED: "File fetched successfully",
         FILE_DELETED: "File deleted successfully",
         FILE_ALREADY_DELETED:"File Already Deleted",
         CONTRACT_DETAILS_SAVED: "Contract details saved successfully",
         CONTRACT_DETAILS_FETCHED: "Contract details fetched successfully",
-        CONTRACT_UPDATED: "Contract updated successfully"
+        CONTRACT_UPDATED: "Contract updated successfully",
+        UCC_LOG_LIST : "Ucc log records retrieved successfully"
     },
   }

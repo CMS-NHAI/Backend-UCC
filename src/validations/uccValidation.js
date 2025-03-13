@@ -157,17 +157,23 @@ export const saveContractDetailsSchema = Joi.object({
       "number.positive": "Contract Length must be a positive number.",
       "any.required": "Contract Length is required."
     }),
+    uccId: Joi.number()
+    .positive()
+    .required({
+      "number.base": "uccId must be a number.",
+      "number.positive": "uccId must be a positive number.",
+      "any.required": "uccId is required."
+    }
+
+    )
 });
 
 export const contractValidationSchema = Joi.object({
   stretchIds: Joi.array()
-      .items(Joi.string().trim().required()) // Must be an array of strings
-      .min(1)
       .required()
       .messages({
           'any.required': 'stretchIds is required',
           'array.base': 'stretchIds must be an array',
-          'array.min': 'At least one stretchId must be provided'
       }),
   
   piu: Joi.array().items(Joi.string().trim()).optional(), // Optional array of strings
@@ -177,5 +183,9 @@ export const contractValidationSchema = Joi.object({
   typeOfWork: Joi.array().items(Joi.string().trim()).optional(), // Optional array of strings
   scheme: Joi.array().items(Joi.string().trim()).optional(), // Optional array of strings
   corridor: Joi.array().items(Joi.string().trim()).optional(), // Optional array of strings
+  limit: Joi.number().integer().positive().optional(), // Optional positive integer
+  page: Joi.number().integer().positive().optional(), // Optional positive integer
+  exports: Joi.boolean().optional(), // Optional string with value 'true'
+  search: Joi.string().optional(), // Optional string
 });
 
