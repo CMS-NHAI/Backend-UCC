@@ -17,7 +17,8 @@ export const RESPONSE_MESSAGES = {
       NO_STRETCH_FOUND: "No stretches found for the given UCCs",
       NO_STRETCH_FOUND_FOR_ID: "No stretches found for the given Stretch ID",
       DRAFT_ALREADY_EXISTS:"A draft contract already exists for this user.",
-      UCC_LOG_NOT_FOUND: "No record found",
+      PAGE_DOES_NOT_EXIST: "Page does not exist",
+      UCC_LOG_NOT_FOUND: "No record found"
     },
     SUCCESS: {
         status:true,
