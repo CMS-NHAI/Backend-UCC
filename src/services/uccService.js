@@ -103,7 +103,7 @@ export const uploadFileService = async (req, res) => {
       document_name: req.file.originalname,
       document_path: params.Key,
       created_by: user_id.toString(),
-      status: "Draft",
+      status: STRING_CONSTANT.DRAFT,
       ucc_id: uccId.toString()
     },
   });
@@ -176,7 +176,7 @@ export const uploadMultipleFileService = async (req, res) => {
         is_deleted: false,
         created_by: user_id.toString(),
         created_at: new Date(),
-        status: "Draft",
+        status: STRING_CONSTANT.DRAFT,
       },
     });
 
@@ -432,7 +432,7 @@ export const insertContractDetails = async (req) => {
   const existingContract = await prisma.ucc_master.findUnique({
     where: {
       ucc_id: uccId,
-      status: STATUS.DRAFT,
+      status: STRING_CONSTANT.DRAFT,
     },
   });
 
@@ -450,7 +450,7 @@ export const insertContractDetails = async (req) => {
       implementation_mode_id: implementationId,
       scheme_id: schemeId,
       updated_by: userId,
-      status: STATUS.DRAFT,
+      status: STRING_CONSTANT.DRAFT,
       project_name: contractName,
       ro_id: roId,
       state_id: stateId,
