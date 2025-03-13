@@ -3,7 +3,7 @@ import { getUccLogService } from '../services/uccLogService.js';
 import { addUccLogService } from '../services/uccLogService.js';
 
 /**
- * Method: GET
+ * Method : GET
  * Description : @getUccLogList method use to get log list
 */
 export const addUccLog = async (req, res) => {
@@ -36,7 +36,7 @@ export const addUccLog = async (req, res) => {
 };
 
 /**
- * Method: GET
+ * Method : GET
  * Description : @getUccLogList method use to get log list
 */
 export const getUccLogList = async (req, res) => {
@@ -71,3 +71,6 @@ export const getUccLogList = async (req, res) => {
         });
     }
 };
+
+
+

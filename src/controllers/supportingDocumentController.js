@@ -41,16 +41,12 @@ export const getSupportingDoc = async (req, res) => {
             throw new APIError(STATUS_CODES.BAD_REQUEST, "User not authenticated");
         }
 
-        // Fetch multiple files from S3
         const files = await getMultipleFileFromS3(req, userId);
-        // response.data.pipe(res);
 
-        // Ensure that files are returned
         if (!files || files.length === 0) {
             return res.status(404).json({ message: "No files found for this user" });
         }
 
-        // Serve each file one by one
         for (const file of files) {
             if (file.error) {
                 console.error(`Error fetching file: ${file.fileName} - ${file.error}`);
@@ -68,7 +64,6 @@ export const getSupportingDoc = async (req, res) => {
         }
 
     } catch (error) {
-        // Catch and return any errors that happen during the process
         return await errorResponse(req, res, error);
     }
 };

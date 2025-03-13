@@ -112,6 +112,7 @@ export const uploadFileService = async (req, res) => {
 };
 
 export const uploadMultipleFileService = async (req, res) => {
+   
   await new Promise((resolve, reject) => {
     ValidateSupportingPDF.array("files", 10)(req, res, (err) => {
       if (err) {
@@ -126,6 +127,7 @@ export const uploadMultipleFileService = async (req, res) => {
     });
   });
 
+
   if (!req.files || req.files.length === 0) {
     throw new APIError(
       STATUS_CODES.BAD_REQUEST,
@@ -135,6 +137,7 @@ export const uploadMultipleFileService = async (req, res) => {
 
   // Validate user existence (if user_id is required)
   const user_id = req.user?.user_id;
+ 
   if (!user_id) {
     throw new APIError(
       STATUS_CODES.BAD_REQUEST,
@@ -142,14 +145,17 @@ export const uploadMultipleFileService = async (req, res) => {
     );
   }
 
+
   // file upload
   const uploadedFilesPromises = req.files.map(async (file) => {
     const params = {
       Bucket: process.env.AWS_BUCKET_NAME,
-      Key: `supporting_document/${Date.now()}-${file.originalname}`,
+      Key: `${process.env.FOLDER_ON_AWS_FOR_DOCUMENT}/${Date.now()}-${file.originalname}`,
       Body: file.buffer,
       ContentType: file.mimetype,
     };
+
+    
 
     const command = new PutObjectCommand(params);
 
@@ -157,20 +163,19 @@ export const uploadMultipleFileService = async (req, res) => {
     const uploadFileResult = await s3Client.send(command);
 
     if (!uploadFileResult || uploadFileResult.$metadata.httpStatusCode !== STATUS_CODES.OK) {
-
       throw new APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, RESPONSE_MESSAGES.ERROR.FILE_UPLOAD_FAILED);
-
     }
 
-    const savedFile = await prisma.supporting_documents.create({
+    const savedFile = await prisma.documents_master.create({
       data: {
         ucc_id:req.body.ucc_id,
-        document_type: "pdf",
+        document_type: process.env.DOCUMENT_TYPE,
         document_name: file.originalname,
         document_path: params.Key,
         key_name: "",
         is_deleted: false,
         created_by: user_id.toString(),
+        created_at: new Date(),
         status: "Draft",
       },
     });
@@ -207,7 +212,7 @@ export const uploadMultipleFileService = async (req, res) => {
 export async function getFileFromS3(req, userId) {
   try {
     logger.info("Fetching document detail from DB");
-    const fileRecord = await prisma.supporting_documents.findFirst({
+    const fileRecord = await prisma.documents_master.findFirst({
       where: {
         created_by: userId.toString(),
         is_deleted: false,
@@ -378,7 +383,7 @@ export async function insertTypeOfWork(req, userId, reqBody) {
 }
 
 export const deleteFileService = async (id) => {
-  const result = await prisma.supporting_documents.findUnique({
+  const result = await prisma.documents_master.findUnique({
     where: {
       document_id: id,
     },
@@ -404,7 +409,7 @@ export const deleteFileService = async (id) => {
       RESPONSE_MESSAGES.ERROR.REQUEST_PROCESSING_ERROR
     );
   }
-  const deletedResult = await prisma.supporting_documents.update({
+  const deletedResult = await prisma.documents_master.update({
     where: {
       document_id: id,
     },
@@ -553,7 +558,7 @@ export const deleteMultipleFileService = async (ids) => {
 
     try {
       // Fetch the file record from the database
-      const result = await prisma.supporting_documents.findUnique({
+      const result = await prisma.documents_master.findUnique({
         where: { document_id: id },
       });
 
@@ -581,7 +586,7 @@ export const deleteMultipleFileService = async (ids) => {
       }
 
 
-      const deletedResult = await prisma.supporting_documents.update({
+      const deletedResult = await prisma.documents_master.update({
         where: { document_id: id },
         data: { is_deleted: true },
       });
@@ -593,7 +598,6 @@ export const deleteMultipleFileService = async (ids) => {
     }
   }
 
-  // Return the summary of deletion attempts
   return deletionResults;
 };
 
