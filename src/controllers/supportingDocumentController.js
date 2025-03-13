@@ -4,8 +4,7 @@ import { STATUS_CODES } from '../constants/statusCodeConstants.js';
 import { errorResponse } from '../helpers/errorHelper.js';
 import APIError from '../utils/apiError.js';
 import logger from "../utils/logger.js";
-import { getMultipleFileFromS3, deleteMultipleFileService, uploadMultipleFileService } from '../services/uccService.js';
-// import uccService from '../services/uccService.js';
+import { getMultipleFileFromS3, deleteMultipleFileService, uploadMultipleFileService, uploadFileService } from '../services/uccService.js';
 
 /**
  * Method : POST
@@ -68,7 +67,6 @@ export const getSupportingDoc = async (req, res) => {
     }
 };
 
-
 /**
  * Method : @Delete
  * Params : @id
@@ -95,3 +93,27 @@ export const deleteSupportingDoc = async (req, res) => {
         return await errorResponse(req, res, error);
     }
 };
+
+export const uploadShapeFile = async(req, res)=>{
+
+    try{
+
+        const savedFile = await uploadFileService(req, res);
+        
+        res.status(STATUS_CODES.CREATED).json({
+            success:STATUS_CODES.SUCCESS,
+            status:STATUS_CODES.CREATED,
+            message:RESPONSE_MESSAGES.SUCCESS.FILE_UPLOADED,
+            data: savedFile
+        })
+
+    }catch(error){
+
+        res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+            success:STATUS_CODES.FAIL,
+            status:STATUS_CODES.INTERNAL_SERVER_ERROR,
+            message:error.message
+        })
+    }
+
+}
