@@ -14,7 +14,7 @@ router.get(
     validateToken, validate(getRequiredStretchQueryValidationSchema, STRING_CONSTANT.QUERY),
     validate(getRequiredStretchParamsValidationSchema, STRING_CONSTANT.PARAMS), getRequiredStretch
 );
-router.get('/myStretches', validateToken, fetchMyStretches);
+router.post('/myStretches', validateToken, fetchMyStretches);
 router.get('/stretchDetails/:stretchId', validateToken, fetchStretchDetails);
 
 export default router;

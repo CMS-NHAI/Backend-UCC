@@ -16,7 +16,8 @@ export const RESPONSE_MESSAGES = {
       NO_UCC_FOUND: "No UCC mappings found for the given userId",
       NO_STRETCH_FOUND: "No stretches found for the given UCCs",
       NO_STRETCH_FOUND_FOR_ID: "No stretches found for the given Stretch ID",
-      DRAFT_ALREADY_EXISTS:"A draft contract already exists for this user."
+      DRAFT_ALREADY_EXISTS:"A draft contract already exists for this user.",
+      PAGE_DOES_NOT_EXIST: "Page does not exist"
     },
     SUCCESS: {
         FILE_UPLOADED: "File uploaded successfully",

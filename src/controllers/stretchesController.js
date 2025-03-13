@@ -61,17 +61,18 @@ export async function fetchMyStretches(req, res) {
     try {
         logger.info("UCC Controller :: getUserStretches");
         const userId = req.user?.user_id;
-        const page = parseInt(req.query.page) || 1;
-        const pageSize = parseInt(req.query.pageSize) || 10;
-        const { projectType, exports } = req.query;
+        const reqBody = req.body;
+        const page = parseInt(reqBody.page) || 1;
+        const pageSize = parseInt(reqBody.pageSize) || 10;
+        const { projectType, exports } = reqBody;
 
         if (exports == STRING_CONSTANT.TRUE) {
             if (projectType.toUpperCase() === STRING_CONSTANT.NHAI) {
-               return await exportMystretchesData(req, userId, res);
+               return await exportMystretchesData(userId, res);
             } else if(projectType.toUpperCase() === STRING_CONSTANT.MORTH) {
                 return res.status(STATUS_CODES.OK).send();
             } else {
-                return await exportMystretchesData(req, userId, res);
+                return await exportMystretchesData(userId, res);
             }
         }
         const response = await getUserStretches(req, userId, page, pageSize, projectType);
