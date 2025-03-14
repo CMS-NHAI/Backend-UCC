@@ -6,8 +6,6 @@ import centralizedRoutes from './routes/index.js'
 import { STATUS_CODES } from './constants/statusCodeConstants.js'
 import { APP_CONSTANTS } from './constants/appConstants.js'
 import dotenv from 'dotenv';
-import { addUccLogService } from "./services/uccLogService.js";
-import { validateToken } from "./middlewares/validateToken.js";
 dotenv.config();
 
 const app = express();
@@ -26,22 +24,8 @@ app.get('/backend/ucc', (req, res) => {
   });
 });
 
-// only for testing purpose
-app.post("/backend/ucc/log", validateToken, async (req, res)=>{
-
-    const userId = req.user?.user_id;
-    const { ucc_id , changed_field, new_value} = req.body
-    const output = await addUccLogService(userId, ucc_id , changed_field, new_value)
-    res.status(200).json({ success:true, message:"Back log created successfully.", data: output})
-
-})
-
-
-const PORT =  process.env.PORT || 3005;
+const PORT = process.env.PORT || 3005;
 
 app.listen(PORT, () => {
   console.log(`server started on PORT ${PORT}`);
 });
-
-
-

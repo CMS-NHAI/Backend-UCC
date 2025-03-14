@@ -46,21 +46,7 @@ export const getSupportingDoc = async (req, res) => {
             return res.status(404).json({ message: "No files found for this user" });
         }
 
-        for (const file of files) {
-            if (file.error) {
-                console.error(`Error fetching file: ${file.fileName} - ${file.error}`);
-                continue;
-            }
-
-            if (file.data) {
-                res.setHeader(HEADER_CONSTANTS.CONTENT_TYPE, HEADER_CONSTANTS.PDF_CONTENT_TYPE);
-                res.setHeader(HEADER_CONSTANTS.CONTENT_DISPOSITION, `attachment; filename="${files.fileName}"`);
-                file.data.pipe(res);
-                return; // Return after sending the first file
-            } else {
-                return res.status(500).json({ message: `File data for ${file.fileName} is missing` });
-            }
-        }
+      res.status(STATUS_CODES.OK).json({ success:true, messsage:RESPONSE_MESSAGES.FILE_DISPLAY_SUCCESS, data:files})
 
     } catch (error) {
         return await errorResponse(req, res, error);

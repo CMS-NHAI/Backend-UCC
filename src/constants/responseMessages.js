@@ -7,6 +7,7 @@ export const RESPONSE_MESSAGES = {
       STRETCH_DATA_ERROR: "An error occurred while creating required stretch based on given start and end chainages.",
       FILE_NOT_FOUND: "File not found",
       FILE_UPLOAD_FAILED: "File upload failed",
+      FILE_DISPLAY_SUCCESS: "File retrieved successfully.",
       USER_NOT_FOUND: "User not found",
       CONTRACT_NOT_FOUND: "Contract not found",
       DOCUMENT_TYPE_NOT_FOUND : "Document type not provided",
