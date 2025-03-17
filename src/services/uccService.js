@@ -63,7 +63,7 @@ export const uploadFileService = async (req, res) => {
 
   const params = {
     Bucket: process.env.AWS_BUCKET_NAME,
-    Key: `${process.env.S3_MAIN_FOLDER}/${process.env.S3_SUB_FOLDER}/${Date.now()}-${req.file.originalname}`,
+    Key: `${process.env.S3_MAIN_FOLDER}/${process.env.S3_SUB_FOLDER}/${Date.now()}-${file.originalname}`,
     Body: req.file.buffer,
     ContentType: req.file.mimetype,
   };
@@ -100,7 +100,8 @@ export const uploadFileService = async (req, res) => {
     data: {
       document_type: req.body.document_type,
       document_name: req.file.originalname,
-      document_path: params.Key,
+      key_name: params.Key,
+      document_path: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${params.Key}`,
       created_at: new Date(),
       is_deleted: false,
       created_by: user_id.toString(),
@@ -374,7 +375,6 @@ export async function insertTypeOfWork(req, userId, reqBody) {
       state: stretchStatePiuRoData.state.join()
     };
   } catch (err) {
-    console.log("ERRRRRRRRRRR :::::::::::: ", err);
     logger.error(`Error in insertTypeOfWork: ${err.message}`);
     throw err;
   }
