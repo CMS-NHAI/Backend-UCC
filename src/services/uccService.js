@@ -61,10 +61,10 @@ export const uploadFileService = async (req, res) => {
       RESPONSE_MESSAGES.ERROR.FILE_NOT_FOUND
     );
   }
-
+  
   const params = {
     Bucket: process.env.AWS_BUCKET_NAME,
-    Key: `${process.env.S3_MAIN_FOLDER}/${process.env.S3_SUB_FOLDER}/${Date.now()}-${file.originalname}`,
+    Key: `${process.env.S3_MAIN_FOLDER}/${process.env.S3_SUB_FOLDER}/${Date.now()}-${req.file.originalname}`,
     Body: req.file.buffer,
     ContentType: req.file.mimetype,
   };
