@@ -18,7 +18,7 @@ import { getDistrict,
     getuserUccDetails,
     getBasicDetailsOfReviewPage,
     submitFinalUccCreation,
-    // getBasicDetailsOfReviewPageDocuments
+    downloadFile
 } 
 from "../controllers/uccController.js";
 import { getRequiredStretchParamsValidationSchema, getRequiredStretchQueryValidationSchema, typeOfWorkRequestBodySchema,saveContractDetailsSchema,contractValidationSchema,deleteFileValidationSchema } from "../validations/uccValidation.js";
@@ -54,6 +54,7 @@ router.post('/getUccDetails',validateToken,validate(contractValidationSchema),ge
 
 
 router.get('/getBasicDetailsOfReviewPage',validateToken,getBasicDetailsOfReviewPage);
+router.get('/downloadFile',validateToken,downloadFile);
 // router.get('/getBasicDetailsOfReviewPageDocuments',validateToken,getBasicDetailsOfReviewPageDocuments );
 
 router.post('/submitUcc', validateToken, validate(contractValidationSchema), submitFinalUccCreation);

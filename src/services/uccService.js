@@ -4,6 +4,7 @@ import {
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { s3Client } from "../config/default.js";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { prisma } from "../config/prismaClient.js";
 import { upload, ValidateSupportingPDF } from "../helpers/multerConfig.js";
 import { RESPONSE_MESSAGES } from "../constants/responseMessages.js";
@@ -814,53 +815,19 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
   }
 };
 
-export async function getSupportingDocuments(req, userId, ucc_id) {
+export const getDataFromS3 = async(filePath, bucket_name) =>{
   try {
-    logger.info("Fetching document detail from DB");
-    const fileRecord = await prisma.supporting_documents.findMany({
-      where: {
-        created_by: userId.toString(),
-        is_deleted: false,
-        ucc_id: ucc_id
-      },
-      select: {
-        document_id: true,
-        document_path: true,
-        document_name: true,
-        is_deleted: true,
-        document_type: true
-      },
-    });
-
-    if (!fileRecord) {
-      throw new APIError(
-        STATUS_CODES.NOT_FOUND,
-        RESPONSE_MESSAGES.ERROR.FILE_NOT_FOUND
-      );
-    }
-
-    logger.info("Document detail fetched successfully.");
-    const fileKey = fileRecord.document_path;
-    const getObjectParams = {
+    const fileKey = filePath;
+    const params = {
       Bucket: process.env.AWS_BUCKET_NAME,
       Key: fileKey,
     };
 
-    logger.info("Fetching File from S3 bucket.");
-    const command = new GetObjectCommand(getObjectParams);
-    const data = await s3Client.send(command);
-    const fileName = fileKey.split("/").pop();
-    logger.info("File fetched successfully from S3 bucket.");
-
-    return { data: data.Body, fileName };
+    const command = new GetObjectCommand(params);
+    // const data = await s3Client.send(command);
+    const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 5000 });
+    return signedUrl
   } catch (error) {
-    logger.error({
-      message: RESPONSE_MESSAGES.ERROR.REQUEST_PROCESSING_ERROR,
-      error: error,
-      url: req.url,
-      method: req.method,
-      time: new Date().toISOString(),
-    });
     throw err;
   }
 }
