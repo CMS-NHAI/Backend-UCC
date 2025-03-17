@@ -10,6 +10,8 @@ import logger from "../utils/logger.js";
 import { HEADER_CONSTANTS } from "../constants/headerConstant.js";
 import { STRING_CONSTANT } from "../constants/stringConstant.js";
 import { exportToCSV } from "../utils/exportUtil.js";
+import { Prisma } from "@prisma/client";
+import { prisma } from "../config/prismaClient.js";
 
 /**
  * Controller to handle the request for required stretch data.
@@ -60,6 +62,7 @@ export async function getRequiredStretch(req, res) {
 export async function fetchMyStretches(req, res) {
     try {
         logger.info("UCC Controller :: getUserStretches");
+        console.time("MY Stretches API time");
         const userId = req.user?.user_id;
         const reqBody = req.body;
         const page = parseInt(reqBody.page) || 1;
@@ -68,8 +71,8 @@ export async function fetchMyStretches(req, res) {
 
         if (exports) {
             if (projectType.toUpperCase() === STRING_CONSTANT.NHAI) {
-               return await exportMystretchesData(userId, res);
-            } else if(projectType.toUpperCase() === STRING_CONSTANT.MORTH) {
+                return await exportMystretchesData(userId, res);
+            } else if (projectType.toUpperCase() === STRING_CONSTANT.MORTH) {
                 return res.status(STATUS_CODES.OK).send();
             } else {
                 return await exportMystretchesData(userId, res);
@@ -94,7 +97,7 @@ export async function fetchMyStretches(req, res) {
 
                 this.push('], "pagination": ');
                 this.push(JSON.stringify(response.pagination));
-                if(message) {
+                if (message) {
                     this.push(`,"message": "${message}"`);
                 }
                 this.push('}');
@@ -105,6 +108,7 @@ export async function fetchMyStretches(req, res) {
         res.setHeader(HEADER_CONSTANTS.CONTENT_TYPE, HEADER_CONSTANTS.APPLICATION_JSON);
         res.setHeader(HEADER_CONSTANTS.TRANSFER_ENCODING, HEADER_CONSTANTS.CHUNKED);
 
+        console.timeEnd("MY Stretches API time");
         // Pipe the data as a stream to the response
         readable.pipe(res);
     } catch (error) {
@@ -132,6 +136,78 @@ export async function fetchStretchDetails(req, res) {
             data
         });
     } catch (error) {
+        await errorResponse(req, res, error);
+    }
+}
+
+export async function testUccTimings(req, res) {
+    try {
+        console.time("UCC Query Execution Time"); // Start timing
+        console.time("UCC Code Execution Time"); // Start timing
+        const stretchId = req.params?.stretchId
+        const stretches = await prisma.$queryRaw`
+                    SELECT 
+                        -- s.ID,
+                        public.ST_Length(s.geom::public.geography) / 1000 AS length_km,
+                        public.ST_AsGeoJSON(s.geom) AS geojson,
+                        s."UCC",		
+                        s."State",		
+                        s."RO",		
+                        s."PIU",		
+                        s."PhaseCode",		
+                        s."CorridorCode",		
+                        s."ProjectCode",		
+                        s."PackageCode",		
+                        s."StateCode",		
+                        s."NH",		
+                        s."ProgramName",		
+                        s."Lanes",		
+                        s."ProjectName",		
+                        s."Division",		
+                        s."ProjectStatus",		
+                        s."Phase",		
+                        s."TypeofWork",		
+                        s."Scheme",		
+                        s."ApprovalDate",		
+                        s."BidDueDate",		
+                        s."LOADateCivilWork",		
+                        s."LOADateAEIECivilWork",		
+                        s."AwardYear",		
+                        s."AgreementDateContractor",		
+                        s."AppontedDateContractor",		
+                        s."AgreementDateAEIECivilWork",		
+                        s."AppointedDateAEIECivilWork",		
+                        s."ScheduledCompletionDate",		
+                        s."LikelyCompletionDate",		
+                        s."ActualCompletionDate",		
+                        s."LikelyDateofAward",		
+                        s."BidInvitationDate",		
+                        s."TerminationDate",		
+                        s."TotalLength",		
+                        s."RevisedLength",		
+                        s."CorridorID",		
+                        s."StretchID"
+                    FROM 
+                        "nhai_gis"."UCCSegments" s
+                    WHERE 
+                        s."UCC" IN (${Prisma.join([stretchId])})
+                `;
+
+        console.timeEnd("UCC Query Execution Time"); // End timing
+        const data = stretches.map((item) => {
+            return {
+                ...item,
+                geojson: JSON.parse(item.geojson),
+                type: STRING_CONSTANT.NHAI
+            };
+        });
+        console.timeEnd("UCC Code Execution Time"); // Start timing
+        res.status(STATUS_CODES.OK).json({
+            success: true,
+            data
+        });
+    } catch (error) {
+        console.log("ERRRRRR Test   :::::::: ", error);
         await errorResponse(req, res, error);
     }
 }

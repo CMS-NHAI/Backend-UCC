@@ -4,6 +4,7 @@ import {
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { s3Client } from "../config/default.js";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { prisma } from "../config/prismaClient.js";
 import { upload, ValidateSupportingPDF } from "../helpers/multerConfig.js";
 import { RESPONSE_MESSAGES } from "../constants/responseMessages.js";
@@ -500,7 +501,7 @@ export async function getMultipleFileFromS3(req, userId) {
       },
       select: {
         document_id: true,
-        key_name:true,
+        key_name: true,
         document_name: true,
         document_path: true,
         created_at: true,
@@ -775,6 +776,10 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
         end_distance_km: true,
         end_distance_metre: true,
         start_distance_km: true,
+        startlatitude: true,
+        startlongitude: true,
+        endlatitude: true,
+        endlongitude: true,
       },
     });
 
@@ -813,45 +818,44 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
   }
 };
 
-export async function getSupportingDocuments(req, userId, ucc_id) {
+export const getDataFromS3 = async(filePath, bucket_name) =>{
   try {
-    logger.info("Fetching document detail from DB");
-    const fileRecord = await prisma.supporting_documents.findMany({
-      where: {
-        created_by: userId.toString(),
-        is_deleted: false,
-        ucc_id: ucc_id
-      },
-      select: {
-        document_id: true,
-        document_path: true,
-        document_name: true,
-        is_deleted: true,
-        document_type: true
-      },
-    });
-
-    if (!fileRecord) {
-      throw new APIError(
-        STATUS_CODES.NOT_FOUND,
-        RESPONSE_MESSAGES.ERROR.FILE_NOT_FOUND
-      );
-    }
-
-    logger.info("Document detail fetched successfully.");
-    const fileKey = fileRecord.document_path;
-    const getObjectParams = {
+    const fileKey = filePath;
+    const params = {
       Bucket: process.env.AWS_BUCKET_NAME,
       Key: fileKey,
     };
 
-    logger.info("Fetching File from S3 bucket.");
-    const command = new GetObjectCommand(getObjectParams);
-    const data = await s3Client.send(command);
-    const fileName = fileKey.split("/").pop();
-    logger.info("File fetched successfully from S3 bucket.");
+    const command = new GetObjectCommand(params);
+    // const data = await s3Client.send(command);
+    const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 5000 });
+    return signedUrl
+  } catch (error) {
+    throw err;
+  }
+}
 
-    return { data: data.Body, fileName };
+export async function createFinalUCC(req, userId, uccId, stretchIds) {
+  try {
+
+    const permanentUccNumber = createPermanentUcc(req, userId, uccId, stretchIds);
+    const response = await prisma.$transaction([
+      prisma.ucc_master.update({
+        where: { ucc_id: uccId, status: STRING_CONSTANT.DRAFT },
+        data: { status: STRING_CONSTANT.BALANCE_FOR_AWARD },
+      }),
+      prisma.ucc_type_of_work_location.updateMany({
+        where: { ucc: uccId, status: STRING_CONSTANT.DRAFT },
+        data: { status: STRING_CONSTANT.BALANCE_FOR_AWARD },
+      }),
+      prisma.documents_master.updateMany({
+        where: { ucc_id: uccId, status: STRING_CONSTANT.DRAFT },
+        data: { status: STRING_CONSTANT.BALANCE_FOR_AWARD },
+      }),
+    ]);
+
+
+    return {};
   } catch (error) {
     logger.error({
       message: RESPONSE_MESSAGES.ERROR.REQUEST_PROCESSING_ERROR,

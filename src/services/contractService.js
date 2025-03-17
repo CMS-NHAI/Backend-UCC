@@ -2,6 +2,7 @@ import { prisma } from "../config/prismaClient.js";
 import { RESPONSE_MESSAGES } from "../constants/responseMessages.js";
 import { STATUS_CODES } from "../constants/statusCodeConstants.js";
 import APIError from "../utils/apiError.js";
+import { saveNHdetailsData } from "./db/uccDbService.js";
 
 export const updateContractDetailService = async (req) => {
 
@@ -74,6 +75,20 @@ export async function updateTypeOfWorkService(req, userId, reqBody) {
         console.error("Error updating type of work:", err);
         throw new Error("Failed to update type of work: " + err.message);
     }
+}
+
+export const saveNHDetailsService = async (req) => {
+    const userId = req.user?.user_id;
+    if (!userId) {
+        throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
+    }
+    const { nhDetails, nhStateDetails,uccId} = req.body;
+
+    if (!Array.isArray(nhDetails) || !Array.isArray(nhStateDetails) || !nhDetails.length || !nhStateDetails.length) {
+        throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.INVALID_NH_DETAILS);
+    }
+
+    await saveNHdetailsData(nhDetails,nhStateDetails,uccId,userId);
 }
 
 
