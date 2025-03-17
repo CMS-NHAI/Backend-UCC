@@ -2,6 +2,7 @@ import express from "express";
 import compression from 'compression';
 import helmet from 'helmet';
 import cors from 'cors';
+import bodyParser from "body-parser"
 import centralizedRoutes from './routes/index.js'
 import { STATUS_CODES } from './constants/statusCodeConstants.js'
 import { APP_CONSTANTS } from './constants/appConstants.js'
@@ -11,7 +12,10 @@ dotenv.config();
 const app = express();
 
 app.use(helmet());
-app.use(express.urlencoded({ extended: true }));
+// Increase limit for JSON requests
+app.use(bodyParser.json({ limit: '50mb' })); // 50MB limit for JSON payloads
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+// app.use(express.urlencoded({ extended: true }));
 app.use(compression());
 app.use(cors());
 app.use(express.json());
