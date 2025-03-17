@@ -5,7 +5,7 @@ import { errorResponse } from '../helpers/errorHelper.js';
 import APIError from '../utils/apiError.js';
 import { prisma } from '../config/prismaClient.js';
 import logger from "../utils/logger.js";
-import { getFileFromS3, insertTypeOfWork,uploadFileService, deleteFileService, getAllImplementationModes, uploadMultipleFileService,getcontractListService,basicDetailsOnReviewPage,getSupportingDocuments, createFinalUCC, getDataFromS3 } from '../services/uccService.js';
+import { getFileFromS3, insertTypeOfWork,uploadFileService, deleteFileService, getAllImplementationModes, uploadMultipleFileService,getcontractListService,basicDetailsOnReviewPage, createFinalUCC, getDataFromS3 } from '../services/uccService.js';
 import { STATUS } from '../constants/appConstants.js';
 // import uccService from '../services/uccService.js';
 // import { S3Client, GetObjectCommand } from  "@aws-sdk/client-s3";
