@@ -17,13 +17,13 @@ import { getDistrict,
     getPIUByROId,
     getuserUccDetails,
     getBasicDetailsOfReviewPage,
-    // getBasicDetailsOfReviewPageDocuments
+    submitFinalUccCreation,
+    downloadFile
 } 
 from "../controllers/uccController.js";
-import { getRequiredStretchParamsValidationSchema, getRequiredStretchQueryValidationSchema, typeOfWorkRequestBodySchema,saveContractDetailsSchema,contractValidationSchema,deleteFileValidationSchema } from "../validations/uccValidation.js";
-
+import { getRequiredStretchParamsValidationSchema, getRequiredStretchQueryValidationSchema, typeOfWorkRequestBodySchema,saveContractDetailsSchema,contractValidationSchema,deleteFileValidationSchema,nhDetailsSchema } from "../validations/uccValidation.js";
 import { getChainageByUcc } from "../controllers/chainageController.js";
-
+import {saveNHdetails} from "../controllers/saveContractController.js";
 
 const router = express.Router()
 
@@ -50,10 +50,12 @@ router.post(
 router.post('/deleteFile',validateToken,validate(deleteFileValidationSchema),deleteFile);
 router.post('/saveContractDetails',validateToken,validate(saveContractDetailsSchema),saveContractDetails);
 router.post('/getUccDetails',validateToken,validate(contractValidationSchema),getuserUccDetails);
+router.post('/saveNHDetails',validateToken,validate(nhDetailsSchema),saveNHdetails);
 
 
 router.get('/getBasicDetailsOfReviewPage',validateToken,getBasicDetailsOfReviewPage);
+router.get('/downloadFile',validateToken,downloadFile);
 // router.get('/getBasicDetailsOfReviewPageDocuments',validateToken,getBasicDetailsOfReviewPageDocuments );
 
-
+router.post('/submitUcc', validateToken, validate(contractValidationSchema), submitFinalUccCreation);
 export default router;

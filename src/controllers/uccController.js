@@ -5,7 +5,7 @@ import { errorResponse } from '../helpers/errorHelper.js';
 import APIError from '../utils/apiError.js';
 import { prisma } from '../config/prismaClient.js';
 import logger from "../utils/logger.js";
-import { getFileFromS3, insertTypeOfWork,uploadFileService, deleteFileService, getAllImplementationModes,getcontractListService,basicDetailsOnReviewPage,getSupportingDocuments } from '../services/uccService.js';
+import { getFileFromS3, insertTypeOfWork,uploadFileService, deleteFileService, getAllImplementationModes,getcontractListService,basicDetailsOnReviewPage, createFinalUCC, getDataFromS3 } from '../services/uccService.js';
 import { STATUS } from '../constants/appConstants.js';
 // import uccService from '../services/uccService.js';
 // import { S3Client, GetObjectCommand } from  "@aws-sdk/client-s3";
@@ -361,13 +361,7 @@ export const getFile = async (req, res) => {
   try {
     logger.info("UccController :: method: getFile.");
     const userId = req.user?.user_id;
-    const ucc_id = req.user?.ucc_id;
-    let response
-    if(ucc_id){
-      response = await getSupportingDocuments(req, userId,ucc_id);
-    }else{
-      response = await getFileFromS3(req, userId);
-    }
+    let response = await getFileFromS3(req, userId);
     res.setHeader(HEADER_CONSTANTS.CONTENT_TYPE, HEADER_CONSTANTS.KML_CONTENT_TYPE);
     res.setHeader(HEADER_CONSTANTS.CONTENT_DISPOSITION, `attachment; filename="${response.fileName}"`);
     response.data.pipe(res);
@@ -439,64 +433,47 @@ export const getBasicDetailsOfReviewPage = async (req,res, next) => {
   }
 };
 
+export const submitFinalUccCreation = async (req, res) => {
+  try {
+    const userId = req.user?.user_id;
+    const { uccId, stretchIds } = req.body;
 
-// export const getBasicDetailsOfReviewPageDocuments = async(req, res) => {
-//   try {
-//     const { userId, uccId } = req.params;
-//     logger.info(`Fetching document details for user: ${userId}, ucc_id: ${uccId}`);
+    const data = await createFinalUCC(req, userId, uccId, stretchIds);
 
-//     // Fetch files from DB
-//     const fileRecords = await prisma.supporting_documents.findMany({
-//       where: {
-//         created_by: userId.toString(),
-//         is_deleted: false,
-//         ucc_id: uccId,
-//       },
-//       select: {
-//         document_id: true,
-//         document_path: true,
-//         document_name: true,
-//         document_type: true,
-//       },
-//     });
+    res.status(STATUS_CODES.OK).json({
+      status: true,
+      data
+    }); 
+  } catch (error) {
+    
+  }
+}
 
-//     if (!fileRecords || fileRecords.length === 0) {
-//       return res.status(404).json({ success: false, message: "No files found for this user." });
-//     }
+export const downloadFile = async (req,res) => {
+  try {
+    const { filePath } = req.query; // Example: "uploads/myfile.pdf"
 
-//     // Fetch each file from S3
-//     const filesData = await Promise.all(
-//       fileRecords.map(async (file) => {
-//         const fileKey = file.document_path;
-//         const getObjectParams = {
-//           Bucket: process.env.AWS_BUCKET_NAME,
-//           Key: fileKey,
-//         };
+    if (!filePath) {
+      return res.status(400).json({ message: "File path is required" });
+    }
 
-//         try {
-//           logger.info(`Fetching file from S3: ${fileKey}`);
-//           const command = new GetObjectCommand(getObjectParams);
-//           const data = await s3Client.send(command);
+    const data = await getDataFromS3(filePath, null)
 
-//           return {
-//             document_id: file.document_id,
-//             fileName: file.document_name,
-//             documentType: file.document_type,
-//             fileUrl: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileKey}`,
-//             fileContent: await data.Body.transformToString('utf-8'), // Convert to string if needed
-//           };
-//         } catch (err) {
-//           logger.error(`Error fetching file from S3: ${fileKey}`, err);
-//           return { document_id: file.document_id, fileName: file.document_name, error: "File not found in S3" };
-//         }
-//       })
-//     );
+    // res.setHeader("Content-Type", data.ContentType);
+    // res.setHeader(
+    //   "Content-Disposition",
+    //   `attachment; filename="${filePath.split("/").pop()}"`
+    // );
+    // data.Body.pipe(res);
 
-//     logger.info("Files fetched successfully.");
-//     res.json({ success: true, files: filesData });
+    return res.status(STATUS_CODES.OK).json({
+      status: true,
+      message: "",
+      data: data,
+    }); 
+  } catch (error) {
+    console.error("Error downloading file:", error);
+    res.status(500).json({ message: "Error downloading file" });
+  }
+};
 
-//   } catch (error) {
-//     logger.error("Error fetching user files", error);
-//     res.status(500).json({ success: false, message: "Error retrieving files", error: error.message });
-//   }
-// }
