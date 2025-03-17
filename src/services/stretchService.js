@@ -101,6 +101,7 @@ async function nhaiStretchDetails(page, pageSize, stretchIds, req) {
     }
     const currentPage = page > totalPages ? totalPages : page;
 
+    console.time("MY Stretches API Fetch Stretches with geoJSON.");
     const stretches = await prisma.$queryRaw`
             SELECT 
                 s.id,
@@ -133,8 +134,10 @@ async function nhaiStretchDetails(page, pageSize, stretchIds, req) {
         `;
 
 
+    console.timeEnd("MY Stretches API Fetch Stretches with geoJSON.");
     logger.info("Stretches data fetched successfully. ");
 
+    console.time("MY Stretches API Fetch UCC Segements time.");
     const uccSegments = await prisma.UCCSegments.findMany({
         where: {
             StretchID: { in: stretchIds },
@@ -147,6 +150,7 @@ async function nhaiStretchDetails(page, pageSize, stretchIds, req) {
         },
     });
 
+    console.timeEnd("MY Stretches API Fetch UCC Segements time.");
     // Group UCC segments by StretchID and concatenate PIU, RO, UCC values
     const uccSegmentsByStretch = uccSegments.reduce((acc, uccSegment) => {
         if (!acc[uccSegment.StretchID]) {
@@ -162,12 +166,14 @@ async function nhaiStretchDetails(page, pageSize, stretchIds, req) {
         return acc;
     }, {});
 
+    console.time("MY Stretches API Contracts Unique Count");
     const uccCounts = await prisma.$queryRaw`
         SELECT "StretchID", COUNT(DISTINCT "UCC") AS uniquecount
         FROM "nhai_gis"."UCCSegments"
         WHERE "StretchID" IN (${Prisma.join(stretchIds)})
         GROUP BY "StretchID";
     `;
+    console.timeEnd("MY Stretches API Contracts Unique Count");
 
     const data = stretches.map((item) => {
         const uniquePhases = Array.from(new Set(item.phases.map(getPhaseNameBeforeParentheses)));

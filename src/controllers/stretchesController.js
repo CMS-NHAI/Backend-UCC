@@ -62,6 +62,7 @@ export async function getRequiredStretch(req, res) {
 export async function fetchMyStretches(req, res) {
     try {
         logger.info("UCC Controller :: getUserStretches");
+        console.time("MY Stretches API time");
         const userId = req.user?.user_id;
         const reqBody = req.body;
         const page = parseInt(reqBody.page) || 1;
@@ -107,6 +108,7 @@ export async function fetchMyStretches(req, res) {
         res.setHeader(HEADER_CONSTANTS.CONTENT_TYPE, HEADER_CONSTANTS.APPLICATION_JSON);
         res.setHeader(HEADER_CONSTANTS.TRANSFER_ENCODING, HEADER_CONSTANTS.CHUNKED);
 
+        console.timeEnd("MY Stretches API time");
         // Pipe the data as a stream to the response
         readable.pipe(res);
     } catch (error) {
