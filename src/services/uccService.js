@@ -777,6 +777,10 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
         end_distance_km: true,
         end_distance_metre: true,
         start_distance_km: true,
+        startlatitude: true,
+        startlongitude: true,
+        endlatitude: true,
+        endlongitude: true,
       },
     });
 
