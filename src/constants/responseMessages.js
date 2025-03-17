@@ -20,7 +20,9 @@ export const RESPONSE_MESSAGES = {
       DRAFT_ALREADY_EXISTS:"A draft contract already exists for this user.",
       PAGE_DOES_NOT_EXIST: "Page does not exist",
       UCC_LOG_NOT_FOUND: "No record found",
-      PIU_ALREADY_EXISTS:"PIU already exists for this user."
+      PIU_ALREADY_EXISTS:"PIU already exists for this user.",
+      NH_DETAILS_INSERTION_FAILED:"Error Occured While Saving NH Details",
+      INVALID_NH_DETAILS_REQUEST:'Invalid request. Provide valid NH details and NH state details.'
     },
     SUCCESS: {
         status:true,
