@@ -17,6 +17,7 @@ import { getDistrict,
     getPIUByROId,
     getuserUccDetails,
     getBasicDetailsOfReviewPage,
+    downloadFile
     // getBasicDetailsOfReviewPageDocuments
 } 
 from "../controllers/uccController.js";
@@ -53,6 +54,7 @@ router.post('/getUccDetails',validateToken,validate(contractValidationSchema),ge
 
 
 router.get('/getBasicDetailsOfReviewPage',validateToken,getBasicDetailsOfReviewPage);
+router.get('/downloadFile',validateToken,downloadFile);
 // router.get('/getBasicDetailsOfReviewPageDocuments',validateToken,getBasicDetailsOfReviewPageDocuments );
 
 
