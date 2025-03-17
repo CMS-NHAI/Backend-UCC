@@ -513,13 +513,51 @@ export async function myStretchExportData(userId) {
         `;
         logger.info("Stretches data fetched successfully. ");
 
-        return stretches.map(record => ({
-            USC: record.StretchID,
-            StretchName: record.ProjectName,
-            Length: record.length_in_km,
-            Phase: record.phases,
-            Corridor: record.corridors
-        }));
+        const uccSegments = await prisma.UCCSegments.findMany({
+            where: {
+                StretchID: { in: stretchIds },
+            },
+            select: {
+                StretchID: true,
+                PIU: true,
+                RO: true,
+            },
+        });
+
+        // Group UCC segments by StretchID and concatenate PIU, RO, UCC values
+        const uccSegmentsByStretch = uccSegments.reduce((acc, uccSegment) => {
+            if (!acc[uccSegment.StretchID]) {
+                acc[uccSegment.StretchID] = {
+                    PIUs: [],
+                    RO: [],
+                };
+            }
+            if (uccSegment.PIU) acc[uccSegment.StretchID].PIUs.push(uccSegment.PIU);
+            if (uccSegment.RO) acc[uccSegment.StretchID].RO.push(uccSegment.RO);
+            return acc;
+        }, {});
+
+        const uccCounts = await prisma.$queryRaw`
+            SELECT "StretchID", COUNT(DISTINCT "UCC") AS uniquecount
+            FROM "nhai_gis"."UCCSegments"
+            WHERE "StretchID" IN (${Prisma.join(stretchIds)})
+            GROUP BY "StretchID";
+        `;
+
+        return stretches.map((item) => {
+            const uccCount = uccCounts.find(count => count.StretchID === item.StretchID);
+            const uccData = uccSegmentsByStretch[item.StretchID] || { PIUs: [], RO: [] };
+            return {
+                USC: item.StretchID,
+                StretchName: item.ProjectName,
+                Length: item.length_in_km,
+                Phase: item.phases,
+                Corridor: item.corridors,
+                RO: uccData.RO.join(STRING_CONSTANT.COMMA) || null,
+                PIU: uccData.PIUs.join(STRING_CONSTANT.COMMA) || null,
+                ActiveContracts: uccCount ? Number(uccCount.uniquecount) : 0
+            };
+        });
     } catch (error) {
         throw error;
     }
@@ -532,7 +570,10 @@ export async function exportMystretchesData(userId, res) {
         { id: 'StretchName', title: 'Stretch Name' },
         { id: 'Length', title: 'Length' },
         { id: 'Phase', title: 'Phase' },
-        { id: 'Corridor', title: 'Corridor' }
+        { id: 'Corridor', title: 'Corridor' },
+        { id: 'RO', title: 'RO' },
+        { id: 'PIU', title: 'PIU' },
+        { id: 'ActiveContracts', title: 'Active Contracts' }
     ];
 
     return await exportToCSV(res, stretchDetails, STRING_CONSTANT.MY_STRETCHES, headers);
