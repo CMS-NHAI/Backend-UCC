@@ -5,17 +5,7 @@ import { errorResponse } from '../helpers/errorHelper.js';
 import APIError from '../utils/apiError.js';
 import { prisma } from '../config/prismaClient.js';
 import logger from "../utils/logger.js";
-import { getFileFromS3, 
-  insertTypeOfWork,
-  uploadFileService, 
-  deleteFileService, 
-  getAllImplementationModes, 
-  uploadMultipleFileService,
-  getcontractListService,
-  basicDetailsOnReviewPage,
-  getDataFromS3
-
-} from '../services/uccService.js';
+import { getFileFromS3, insertTypeOfWork,uploadFileService, deleteFileService, getAllImplementationModes, uploadMultipleFileService,getcontractListService,basicDetailsOnReviewPage,getSupportingDocuments, createFinalUCC, getDataFromS3 } from '../services/uccService.js';
 import { STATUS } from '../constants/appConstants.js';
 // import uccService from '../services/uccService.js';
 // import { S3Client, GetObjectCommand } from  "@aws-sdk/client-s3";
@@ -442,6 +432,23 @@ export const getBasicDetailsOfReviewPage = async (req,res, next) => {
   return await errorResponse(req, res, error);
   }
 };
+
+export const submitFinalUccCreation = async (req, res) => {
+  try {
+    const userId = req.user?.user_id;
+    const { uccId, stretchIds } = req.body;
+
+    const data = await createFinalUCC(req, userId, uccId, stretchIds);
+
+    res.status(STATUS_CODES.OK).json({
+      status: true,
+      data
+    }); 
+  } catch (error) {
+    
+  }
+}
+
 export const downloadFile = async (req,res) => {
   try {
     const { filePath } = req.query; // Example: "uploads/myfile.pdf"

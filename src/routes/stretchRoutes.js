@@ -16,6 +16,6 @@ router.get(
 );
 router.post('/myStretches', validateToken, fetchMyStretches);
 router.get('/stretchDetails/:stretchId', validateToken, fetchStretchDetails);
-router.get('/uccDataTest/:stretchId', testUccTimings);
+router.get('/uccDataTest/:stretchId', validateToken, testUccTimings);
 
 export default router;

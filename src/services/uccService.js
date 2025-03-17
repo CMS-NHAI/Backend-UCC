@@ -502,7 +502,7 @@ export async function getMultipleFileFromS3(req, userId) {
       },
       select: {
         document_id: true,
-        key_name:true,
+        key_name: true,
         document_name: true,
         document_path: true,
         created_at: true,
@@ -828,6 +828,35 @@ export const getDataFromS3 = async(filePath, bucket_name) =>{
     const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 5000 });
     return signedUrl
   } catch (error) {
+    throw err;
+  }
+}
+
+export async function createFinalUCC(req, userId, uccId, stretchIds) {
+  try {
+    const response = await prisma.$transaction([
+      prisma.ucc_master.update({
+        where: { ucc_id: uccId, status: STRING_CONSTANT.DRAFT },
+        data: { status: STRING_CONSTANT.BALANCE_FOR_AWARD },
+      }),
+      prisma.ucc_type_of_work_location.updateMany({
+        where: { ucc: uccId, status: STRING_CONSTANT.DRAFT },
+        data: { status: STRING_CONSTANT.BALANCE_FOR_AWARD },
+      }),
+      prisma.documents_master.updateMany({
+        where: { ucc_id: uccId, status: STRING_CONSTANT.DRAFT },
+        data: { status: STRING_CONSTANT.BALANCE_FOR_AWARD },
+      }),
+    ]);
+    return {};
+  } catch (error) {
+    logger.error({
+      message: RESPONSE_MESSAGES.ERROR.REQUEST_PROCESSING_ERROR,
+      error: error,
+      url: req.url,
+      method: req.method,
+      time: new Date().toISOString(),
+    });
     throw err;
   }
 }
