@@ -12,10 +12,8 @@ dotenv.config();
 const app = express();
 
 app.use(helmet());
-// Increase limit for JSON requests
-app.use(bodyParser.json({ limit: '50mb' })); // 50MB limit for JSON payloads
-app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
-// app.use(express.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: '5mb' }));
+app.use(bodyParser.urlencoded({ limit: '5mb', extended: true }));
 app.use(compression());
 app.use(cors());
 app.use(express.json());
