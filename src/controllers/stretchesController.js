@@ -194,7 +194,6 @@ export async function testUccTimings(req, res) {
                 `;
 
         console.timeEnd("UCC Query Execution Time"); // End timing
-        console.timeEnd("UCC Code Execution Time"); // Start timing
         const data = stretches.map((item) => {
             return {
                 ...item,
@@ -202,6 +201,7 @@ export async function testUccTimings(req, res) {
                 type: STRING_CONSTANT.NHAI
             };
         });
+        console.timeEnd("UCC Code Execution Time"); // Start timing
         res.status(STATUS_CODES.OK).json({
             success: true,
             data

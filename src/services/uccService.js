@@ -838,6 +838,8 @@ export const getDataFromS3 = async(filePath, bucket_name) =>{
 
 export async function createFinalUCC(req, userId, uccId, stretchIds) {
   try {
+
+    const permanentUccNumber = createPermanentUcc(req, userId, uccId, stretchIds);
     const response = await prisma.$transaction([
       prisma.ucc_master.update({
         where: { ucc_id: uccId, status: STRING_CONSTANT.DRAFT },
@@ -852,6 +854,8 @@ export async function createFinalUCC(req, userId, uccId, stretchIds) {
         data: { status: STRING_CONSTANT.BALANCE_FOR_AWARD },
       }),
     ]);
+
+
     return {};
   } catch (error) {
     logger.error({
