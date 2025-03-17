@@ -21,7 +21,7 @@ import { getStretchPiuRoAndState } from "./stretchService.js";
 import { exportToCSV } from "../utils/exportUtil.js";
 
 export const uploadFileService = async (req, res) => {
-  
+
   await new Promise((resolve, reject) => {
     upload.single("file")(req, res, (err) => {
       if (err) {
@@ -63,7 +63,7 @@ export const uploadFileService = async (req, res) => {
 
   const params = {
     Bucket: process.env.AWS_BUCKET_NAME,
-    Key: `uploads/${Date.now()}-${req.file.originalname}`,
+    Key: `${process.env.S3_MAIN_FOLDER}/${process.env.S3_SUB_FOLDER}/${Date.now()}-${req.file.originalname}`,
     Body: req.file.buffer,
     ContentType: req.file.mimetype,
   };
@@ -83,11 +83,9 @@ export const uploadFileService = async (req, res) => {
   }
 
   let uccId = draftUccId;
-  
+
   if (uccId == "null" || !uccId) {
-    console.log("hadfghjkl;jhg ", stretchUsc)
-    console.log("hadfghjkl;jhg ", stretchUsc)
-    console.log("hadfghjkl;jhg ", stretchUsc)
+
     const dbUccId = await prisma.ucc_master.create({
       data: {
         stretch_id: JSON.parse(stretchUsc),
@@ -95,24 +93,27 @@ export const uploadFileService = async (req, res) => {
       },
       select: { ucc_id: true },
     });
+
     uccId = dbUccId.ucc_id;
   }
-  const savedFile = await prisma.supporting_documents.create({
+  const savedFile = await prisma.documents_master.create({
     data: {
       document_type: req.body.document_type,
       document_name: req.file.originalname,
       document_path: params.Key,
+      created_at: new Date(),
+      is_deleted: false,
       created_by: user_id.toString(),
-      status: "Draft",
+      status: STRING_CONSTANT.DRAFT,
       ucc_id: uccId.toString()
     },
   });
 
-  return {uccId: JSON.parse(uccId), savedFile};
+  return { uccId: JSON.parse(uccId), savedFile };
 };
 
 export const uploadMultipleFileService = async (req, res) => {
-   
+
   await new Promise((resolve, reject) => {
     ValidateSupportingPDF.array("files", 10)(req, res, (err) => {
       if (err) {
@@ -127,7 +128,6 @@ export const uploadMultipleFileService = async (req, res) => {
     });
   });
 
-
   if (!req.files || req.files.length === 0) {
     throw new APIError(
       STATUS_CODES.BAD_REQUEST,
@@ -137,7 +137,7 @@ export const uploadMultipleFileService = async (req, res) => {
 
   // Validate user existence (if user_id is required)
   const user_id = req.user?.user_id;
- 
+
   if (!user_id) {
     throw new APIError(
       STATUS_CODES.BAD_REQUEST,
@@ -145,17 +145,15 @@ export const uploadMultipleFileService = async (req, res) => {
     );
   }
 
-
   // file upload
   const uploadedFilesPromises = req.files.map(async (file) => {
     const params = {
       Bucket: process.env.AWS_BUCKET_NAME,
-      Key: `${process.env.FOLDER_ON_AWS_FOR_DOCUMENT}/${Date.now()}-${file.originalname}`,
+      acl: 'public-read',
+      Key: `${process.env.S3_MAIN_FOLDER}/${process.env.S3_SUB_FOLDER}/${Date.now()}-${file.originalname}`,
       Body: file.buffer,
       ContentType: file.mimetype,
     };
-
-    
 
     const command = new PutObjectCommand(params);
 
@@ -168,15 +166,15 @@ export const uploadMultipleFileService = async (req, res) => {
 
     const savedFile = await prisma.documents_master.create({
       data: {
-        ucc_id:req.body.ucc_id,
+        ucc_id: req.body.ucc_id,
         document_type: process.env.DOCUMENT_TYPE,
         document_name: file.originalname,
-        document_path: params.Key,
-        key_name: "",
+        document_path: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${params.Key}`,
+        key_name: params.Key,
         is_deleted: false,
         created_by: user_id.toString(),
         created_at: new Date(),
-        status: "Draft",
+        status: STRING_CONSTANT.DRAFT,
       },
     });
 
@@ -388,7 +386,7 @@ export const deleteFileService = async (id) => {
       document_id: id,
     },
   });
-  if(!result){
+  if (!result) {
     throw new APIError(STATUS_CODES.NOT_FOUND, RESPONSE_MESSAGES.ERROR.FILE_NOT_FOUND);
   }
   if (result.is_deleted == true) {
@@ -423,7 +421,7 @@ export const getAllImplementationModes = async () => {
 };
 
 export const insertContractDetails = async (req) => {
-  const { shortName, piu, implementationId, schemeId, contractName, roId, stateId, contractLength,uccId } = req.body;
+  const { shortName, piu, implementationId, schemeId, contractName, roId, stateId, contractLength, uccId } = req.body;
   const userId = req.user?.user_id;
   if (!userId) {
     throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
@@ -432,7 +430,7 @@ export const insertContractDetails = async (req) => {
   const existingContract = await prisma.ucc_master.findUnique({
     where: {
       ucc_id: uccId,
-      status: STATUS.DRAFT,
+      status: STRING_CONSTANT.DRAFT,
     },
   });
 
@@ -441,8 +439,8 @@ export const insertContractDetails = async (req) => {
   }
 
   const result = await prisma.ucc_master.update({
-    where:{
-      ucc_id:uccId
+    where: {
+      ucc_id: uccId
     },
     data: {
       short_name: shortName,
@@ -450,54 +448,52 @@ export const insertContractDetails = async (req) => {
       implementation_mode_id: implementationId,
       scheme_id: schemeId,
       updated_by: userId,
-      status: STATUS.DRAFT,
+      status: STRING_CONSTANT.DRAFT,
       project_name: contractName,
       ro_id: roId,
       state_id: stateId,
       contract_length: contractLength,
-      updated_at:new Date()
+      updated_at: new Date()
     },
   });
-if (piu?.length) {
-  for (const piu_id of piu) {
-    const existingPiu = await prisma.ucc_piu.findFirst({
-      where: {
-        ucc_id: uccId,
-        piu_id: piu_id,
-      },
-    });
-
-    if (existingPiu) {
-      // Update the existing PIU record
-      await prisma.ucc_piu.update({
-        where: { id: existingPiu.id }, // Assuming `id` is the primary key of `ucc_piu`
-        data: {
-          updated_by: userId,
-          updated_at: new Date(),
-         },
-      });
-    } else {
-      // Create a new PIU record
-      await prisma.ucc_piu.create({
-        data: {
-          ucc_id: result.ucc_id,
-          piu_id,
-          created_by: userId,
+  if (piu?.length) {
+    for (const piu_id of piu) {
+      const existingPiu = await prisma.ucc_piu.findFirst({
+        where: {
+          ucc_id: uccId,
+          piu_id: piu_id,
         },
       });
+
+      if (existingPiu) {
+        // Update the existing PIU record
+        await prisma.ucc_piu.update({
+          where: { id: existingPiu.id }, // Assuming `id` is the primary key of `ucc_piu`
+          data: {
+            updated_by: userId,
+            updated_at: new Date(),
+          },
+        });
+      } else {
+        // Create a new PIU record
+        await prisma.ucc_piu.create({
+          data: {
+            ucc_id: result.ucc_id,
+            piu_id,
+            created_by: userId,
+          },
+        });
+      }
     }
   }
-}
   return result;
 
 }
 
 export async function getMultipleFileFromS3(req, userId) {
   try {
-    logger.info("Fetching multiple document details from DB");
-
     // Fetch all documents for the user that are not deleted
-    const fileRecords = await prisma.supporting_documents.findMany({
+    const fileRecords = await prisma.documents_master.findMany({
       where: {
         created_by: userId.toString(),
         ucc_id: req.params.ucc_id,
@@ -505,8 +501,17 @@ export async function getMultipleFileFromS3(req, userId) {
       },
       select: {
         document_id: true,
-        document_path: true,
+        key_name:true,
         document_name: true,
+        document_path: true,
+        created_at: true,
+        created_by: true,
+        is_deleted: true,
+        status: true
+
+      },
+      orderBy: {
+        created_at: 'desc',
       },
     });
 
@@ -515,54 +520,19 @@ export async function getMultipleFileFromS3(req, userId) {
       throw new APIError(STATUS_CODES.NOT_FOUND, RESPONSE_MESSAGES.ERROR.NO_FILES_FOUND);
     }
 
-    logger.info(`Found ${fileRecords.length} document(s).`);
-
-    // Process each file and fetch from S3
-    const files = await Promise.all(fileRecords.map(async (fileRecord) => {
-      try {
-        const fileKey = fileRecord.document_path;
-        const getObjectParams = {
-          Bucket: process.env.AWS_BUCKET_NAME,
-          Key: fileKey,
-        };
-
-        logger.info(`Fetching file with key: ${fileKey} from S3 bucket.`);
-
-        const command = new GetObjectCommand(getObjectParams);
-
-        const data = await s3Client.send(command);
-
-        // Extract the file name from the file path
-        const fileName = fileKey.split('/').pop();
-        logger.info(`File ${fileName} fetched successfully from S3.`);
-
-        return { data: data.Body, fileName };
-      } catch (fileError) {
-        // Log error specific to each file
-        logger.error({
-          message: `Error fetching file: ${fileRecord.document_name}`,
-          error: fileError,
-          url: req.url,
-          method: req.method,
-          time: new Date().toISOString(),
-        });
-        // Return error information for that file
-        return { error: `Error fetching file: ${fileRecord.document_name}`, fileName: fileRecord.document_name };
-      }
-    }));
-
-    return files; // Return the array of files (or errors)
+    return fileRecords; // Return the array of files (or errors)
   } catch (error) {
     logger.error({
       message: RESPONSE_MESSAGES.ERROR.REQUEST_PROCESSING_ERROR,
-      error: error,
+      error: error.message,
       url: req.url,
       method: req.method,
       time: new Date().toISOString(),
     });
-    throw error;
+    throw error.message;
   }
 }
+
 
 export const deleteMultipleFileService = async (ids) => {
   if (!Array.isArray(ids) || ids.length === 0) {
@@ -618,21 +588,21 @@ export const deleteMultipleFileService = async (ids) => {
   return deletionResults;
 };
 
-export const getcontractListService = async (req,res) => {
-  let { stretchIds, piu, ro, program, phase, typeOfWork, scheme, corridor,page=1,limit=10,exports,search} = req.body;
+export const getcontractListService = async (req, res) => {
+  let { stretchIds, piu, ro, program, phase, typeOfWork, scheme, corridor, page = 1, limit = 10, exports, search } = req.body;
   const userId = req.user?.user_id;
-   page = parseInt(page);
-   limit=parseInt(limit); 
-   const skip = (page - 1) * limit;
+  page = parseInt(page);
+  limit = parseInt(limit);
+  const skip = (page - 1) * limit;
   if (!userId) {
     throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
   }
   let where = {};
-  if(stretchIds.length > 0 ){
+  if (stretchIds.length > 0) {
     where.StretchID = {
       in: stretchIds,
     }
-  }else{
+  } else {
     let getUserUccs = await prisma.ucc_user_mappings.findMany({
       where: {
         user_id: userId,
@@ -661,18 +631,18 @@ export const getcontractListService = async (req,res) => {
 
   let orConditions = [];
 
-if (piu?.length) orConditions.push({ PIU: { in: piu } });
-if (ro?.length) orConditions.push({ RO: { in: ro } });
-if (program?.length) orConditions.push({ ProgramName: { in: program } });
-if (phase?.length) orConditions.push({ PhaseCode: { in: phase } });
-if (typeOfWork?.length) orConditions.push({ TypeofWork: { in: typeOfWork } });
-if (scheme?.length) orConditions.push({ Scheme: { in: scheme } });
-if (corridor?.length) orConditions.push({ CorridorCode: { in: corridor } });
+  if (piu?.length) orConditions.push({ PIU: { in: piu } });
+  if (ro?.length) orConditions.push({ RO: { in: ro } });
+  if (program?.length) orConditions.push({ ProgramName: { in: program } });
+  if (phase?.length) orConditions.push({ PhaseCode: { in: phase } });
+  if (typeOfWork?.length) orConditions.push({ TypeofWork: { in: typeOfWork } });
+  if (scheme?.length) orConditions.push({ Scheme: { in: scheme } });
+  if (corridor?.length) orConditions.push({ CorridorCode: { in: corridor } });
 
-if( orConditions.length > 0){
-  where ={ OR: orConditions } 
-}
-const [result, totalCount] = await Promise.all([
+  if (orConditions.length > 0) {
+    where = { OR: orConditions }
+  }
+  const [result, totalCount] = await Promise.all([
     prisma.UCCSegments.findMany({
       where,
       distinct: ['UCC'],
@@ -684,11 +654,11 @@ const [result, totalCount] = await Promise.all([
         UCC: true,
         TotalLength: true,
         RevisedLength: true,
-        CorridorCode:true,
-        RO:true,
-        Scheme:true,
-        PhaseCode:true,
-        ProgramName:true,
+        CorridorCode: true,
+        RO: true,
+        Scheme: true,
+        PhaseCode: true,
+        ProgramName: true,
       },
       skip,
       take: limit,
@@ -697,13 +667,13 @@ const [result, totalCount] = await Promise.all([
   ]);
 
 
-  const ids =await result.map((item) => { return item.StretchID; });
+  const ids = await result.map((item) => { return item.StretchID; });
   const strectchDetails = await prisma.Stretches.findMany({
-    where:{
+    where: {
       StretchID: {
         in: ids,
+      },
     },
-  },
     select: {
       StretchID: true,
       ProjectName: true,
@@ -721,17 +691,17 @@ const [result, totalCount] = await Promise.all([
   });
 
   if (exports) {
-              const headers = [
-                  { id: 'UCC', title: 'UCC' },
-                  { id: 'ProjectName', title: 'Contract Name' },
-                  { id: 'PIU', title: 'PIU' },
-                  { id: 'TypeofWork', title: 'Type of Work' },
-                  { id: 'TotalLength', title: 'Length' },
-                  { id: 'status', title: 'Status' }
-              ];
-  
-              return await exportToCSV(res, finalContractList, STRING_CONSTANT.CONTRACT_DETAILS,headers);
-          }
+    const headers = [
+      { id: 'UCC', title: 'UCC' },
+      { id: 'ProjectName', title: 'Contract Name' },
+      { id: 'PIU', title: 'PIU' },
+      { id: 'TypeofWork', title: 'Type of Work' },
+      { id: 'TotalLength', title: 'Length' },
+      { id: 'status', title: 'Status' }
+    ];
+
+    return await exportToCSV(res, finalContractList, STRING_CONSTANT.CONTRACT_DETAILS, headers);
+  }
   return {
     page,
     limit,
@@ -776,7 +746,7 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
         },
       },
     });
-    
+
     if (!uccRecord) {
       return null
     }
@@ -833,14 +803,14 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
       state: uccRecord.ml_states.state_name,
       scheme_master: uccRecord.scheme_master.scheme_name,
       or_office_master: uccRecord.or_office_master.office_name,
-      type_of_work: type_of_work?type_of_work: null,
+      type_of_work: type_of_work ? type_of_work : null,
       supporting_documents: fileRecord
       // supporting_documents: supporting_documents
     };
     return data;
   } catch (error) {
     console.error("Error fetching UCC record:", error);
-   throw error
+    throw error
   }
 };
 
