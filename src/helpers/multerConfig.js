@@ -25,5 +25,5 @@ export const upload = multer({ storage,limits: {
 }, fileFilter: kmlFilter });
 
 export const ValidateSupportingPDF = multer({ storage, limits: {
-  fileSize: 5 * 1024 * 1024 // no larger than 5mb
+  fileSize: 5 * 1024 * 1024
 }, fileFilter: supprotingDocPdf});
