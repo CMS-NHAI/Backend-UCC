@@ -374,8 +374,9 @@ export const getImplementationModes = async (req,res, next) => {
     try {
         const modes = await getAllImplementationModes();
         res.status(STATUS_CODES.OK).json({
-          status: true,
-          message: "",
+          success:RESPONSE_MESSAGES.SUCCESS.status,
+          status: STATUS_CODES.OK,
+          message: "Record retrieved successfully.",
           data: modes,
         }); 
     } catch (error) {
