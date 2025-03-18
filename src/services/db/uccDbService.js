@@ -41,3 +41,37 @@ export const saveNHdetailsData = async (nhDetailsArray,nhStateDetailsArray,uccId
     throw new APIError(STATUS_CODES.BAD_REQUEST,RESPONSE_MESSAGES.ERROR.NH_DETAILS_INSERTION_FAILED)
   }
 };
+
+export const updateNHdetailsData = async (nhDetailsArray, nhStateDetailsArray, userId) => {
+  try {
+    await prisma.$transaction([
+      ...nhDetailsArray.map(nhDetail =>
+        prisma.ucc_nh_details.update({
+          where: { id: nhDetail.id },
+          data: {
+            nh_number: nhDetail.nhNumber,
+            start_chainage: nhDetail.startChainage,
+            end_chainage: nhDetail.endChainage,
+            length: nhDetail.length,
+            updated_by: userId,
+            updated_at: new Date(),
+          }
+        })
+      ),
+      ...nhStateDetailsArray.map(nhStateDetail =>
+        prisma.ucc_nh_state_details.update({
+          where: { id: nhStateDetail.id },
+          data: {
+            state_id: nhStateDetail.stateId,
+            district_id: nhStateDetail.districtId,
+            nh_state_distance: nhStateDetail.stateDistance,
+            updated_by: userId,
+            updated_at: new Date(),
+          }
+        })
+      )
+    ]);
+  } catch (error) {
+    throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.NH_DETAILS_UPDATE_FAILED);
+  }
+};
