@@ -1,4 +1,4 @@
-import { updateContractDetailService, updateTypeOfWorkService } from '../services/contractService.js';
+import { updateContractDetailService, updateTypeOfWorkService,updateNHdetailsService } from '../services/contractService.js';
 import { RESPONSE_MESSAGES } from '../constants/responseMessages.js';
 import { STATUS_CODES } from '../constants/statusCodeConstants.js';
 import { errorResponse } from '../helpers/errorHelper.js';
@@ -41,6 +41,23 @@ export const updateTypeOfWork = async (req, res) => {
       data
     });
   } catch (error) {
+    return await errorResponse(req, res, error);
+  }
+}
+
+export const updateNHdetails = async (req,res) =>{
+  try{
+    const userId = req.user?.user_id;
+    const payload = req.body;
+    const data = await updateNHdetailsService( userId, payload); 
+
+    res.status(STATUS_CODES.OK).json({
+      status: true,
+      message: RESPONSE_MESSAGES.SUCCESS.NH_DETAILS_UPDATED,
+      data
+    });
+  }catch(error){
+    console.log(error,"error occured")
     return await errorResponse(req, res, error);
   }
 }

@@ -2,7 +2,7 @@ import { prisma } from "../config/prismaClient.js";
 import { RESPONSE_MESSAGES } from "../constants/responseMessages.js";
 import { STATUS_CODES } from "../constants/statusCodeConstants.js";
 import APIError from "../utils/apiError.js";
-import { saveNHdetailsData } from "./db/uccDbService.js";
+import { saveNHdetailsData,updateNHdetailsData } from "./db/uccDbService.js";
 
 export const updateContractDetailService = async (req) => {
 
@@ -89,6 +89,15 @@ export const saveNHDetailsService = async (req) => {
     }
 
     await saveNHdetailsData(nhDetails,nhStateDetails,uccId,userId);
+}
+
+export const updateNHdetailsService =async (userId,payload)=> {
+    if (!userId) {
+        throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
+    }
+    await updateNHdetailsData(payload.nhDetails,payload.nhStateDetails,userId)
+
+
 }
 
 
