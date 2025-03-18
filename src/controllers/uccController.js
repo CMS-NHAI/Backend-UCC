@@ -435,17 +435,16 @@ export const getBasicDetailsOfReviewPage = async (req,res, next) => {
 
 export const submitFinalUccCreation = async (req, res) => {
   try {
-    const userId = req.user?.user_id;
-    const { uccId, stretchIds } = req.body;
+    const { uccId } = req.body;
 
-    const data = await createFinalUCC(req, userId, uccId, stretchIds);
+    const data = await createFinalUCC(req, uccId);
 
     res.status(STATUS_CODES.OK).json({
       status: true,
       data
     }); 
   } catch (error) {
-    
+    return await errorResponse(req, res, error);
   }
 }
 

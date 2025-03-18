@@ -31,6 +31,7 @@ export const RESPONSE_MESSAGES = {
         CONTRACT_DETAILS_SAVED: "Contract details saved successfully",
         CONTRACT_DETAILS_FETCHED: "Contract details fetched successfully",
         CONTRACT_UPDATED: "Contract updated successfully",
-        UCC_LOG_LIST : "Ucc log records retrieved successfully"
+        UCC_LOG_LIST : "Ucc log records retrieved successfully",
+        EXHAUST_PACKAGE_CODE: "You have exhausted the package Code. Please create a new Stretch or Project."
     },
   }

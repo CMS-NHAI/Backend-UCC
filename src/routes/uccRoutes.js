@@ -57,5 +57,5 @@ router.get('/getBasicDetailsOfReviewPage',validateToken,getBasicDetailsOfReviewP
 router.get('/downloadFile',validateToken,downloadFile);
 // router.get('/getBasicDetailsOfReviewPageDocuments',validateToken,getBasicDetailsOfReviewPageDocuments );
 
-router.post('/submitUcc', validateToken, validate(contractValidationSchema), submitFinalUccCreation);
+router.post('/createFinalUcc', validateToken, submitFinalUccCreation);
 export default router;

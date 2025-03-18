@@ -14,7 +14,9 @@ export const STRING_CONSTANT = Object.freeze({
     EMPTY: "",
     AWARDED: "awarded",
     CONTRACT_DETAILS: "ContractDetails",
-    BALANCE_FOR_AWARD: "Balance For Award"
+    BALANCE_FOR_AWARD: "Balance For Award",
+    STRING_XX: "XX",
+    DESC: "desc"
 });
 
 export const ALLOWED_TYPES_OF_WORK = Object.freeze([
