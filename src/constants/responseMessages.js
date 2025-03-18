@@ -23,7 +23,8 @@ export const RESPONSE_MESSAGES = {
       PIU_ALREADY_EXISTS:"PIU already exists for this user.",
       NH_DETAILS_INSERTION_FAILED:"Error Occured While Saving NH Details",
       INVALID_NH_DETAILS_REQUEST:'Invalid request. Provide valid NH details and NH state details.',
-      NH_DETAILS_UPDATE_FAILED:'Error Occured While Updating NH Details'
+      NH_DETAILS_UPDATE_FAILED:'Error Occured While Updating NH Details',
+      UNAUTHORIZED:"User not Authorised to Approve the Request"
     },
     SUCCESS: {
         status:true,
@@ -36,6 +37,7 @@ export const RESPONSE_MESSAGES = {
         CONTRACT_UPDATED: "Contract updated successfully",
         UCC_LOG_LIST : "Ucc log records retrieved successfully",
         EXHAUST_PACKAGE_CODE: "You have exhausted the package Code. Please create a new Stretch or Project.",
-        NH_DETAILS_UPDATED:"NH Details Updated Successfully."
+        NH_DETAILS_UPDATED:"NH Details Updated Successfully.",
+        APPROVAL_STATUS_UPDATED:""
     },
   }

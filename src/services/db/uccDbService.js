@@ -75,3 +75,30 @@ export const updateNHdetailsData = async (nhDetailsArray, nhStateDetailsArray, u
     throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.NH_DETAILS_UPDATE_FAILED);
   }
 };
+
+export const updateApprovalData =async(userId,uccId,status) =>{
+  try{
+    const uccData = await prisma.ucc_master.findFirst({
+      where:{
+        ucc_id:uccId,
+      }
+    })
+    if(!uccData){
+      throw new APIError(STATUS_CODES.NOT_FOUND,RESPONSE_MESSAGES.ERROR.NO_UCC_FOUND)
+    }
+    await prisma.ucc_master.update({
+      where:{
+        ucc_id:uccId,
+      },
+      data:{
+        approvedby:userId,
+        approvedate:new Date(),
+        statusafterapproval:STRING_CONSTANT[status.toUpperCase()] || STRING_CONSTANT.REJECTED
+      }
+    })
+
+  }catch(err){
+    console.log(err,"eroror")
+    throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.NH_DETAILS_UPDATE_FAILED);
+  }
+}
