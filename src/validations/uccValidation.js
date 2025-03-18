@@ -237,3 +237,16 @@ export const updateNHDetailsSchema =Joi.object({
     })
   ).min(1).required().messages({ 'array.min': 'At least one NH state detail is required' }),
 });
+
+export const approvalStatusSchema = Joi.object({
+  uccId:Joi.number().required().messages({'any.required':'uccId is required'}),
+  approvalStatus:Joi.string()
+  .trim()
+  .min(1)
+  .required()
+  .messages({
+    "string.base": "ApprovalStatus must be a string.",
+    "string.empty": "ApprovalStatus is required.",
+    "any.required": "ApprovalStatus is required."
+  }),
+})
