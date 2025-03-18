@@ -497,7 +497,7 @@ export async function getMultipleFileFromS3(req, userId) {
     const fileRecords = await prisma.documents_master.findMany({
       where: {
         created_by: userId.toString(),
-        ucc_id: req.params.ucc_id,
+        ucc_id: req.query.ucc_id,
         is_deleted: false,
       },
       select: {
@@ -508,6 +508,7 @@ export async function getMultipleFileFromS3(req, userId) {
         created_at: true,
         created_by: true,
         is_deleted: true,
+        ucc_id:true,
         status: true
 
       },
