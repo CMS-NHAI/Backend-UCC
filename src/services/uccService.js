@@ -775,7 +775,34 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
         document_type: true
       },
     });
-    // Prepare the final response
+        
+    const ucc_nh_details = await prisma.ucc_nh_state_details.findMany({
+      where: {
+        ucc_id: uccRecord.ucc_id,
+      },
+      include: {
+        ml_states: {   // This should match the relation name in Prisma schema
+          select: {
+            state_name: true,
+          },
+        },
+        districts_master: {
+        select: {
+          district_name: true
+        }
+      },
+      ucc_nh_details: {
+      select: {
+        nh_number: true,
+        start_chainage: true,
+        end_chainage: true,
+        length: true,
+        status: true
+      },
+    },
+      },
+    });
+    
     const data = {
       contract_name: uccRecord.contract_name,
       short_name: uccRecord.short_name,
@@ -786,8 +813,8 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
       scheme_master: uccRecord.scheme_master.scheme_name,
       or_office_master: uccRecord.or_office_master.office_name,
       type_of_work: type_of_work ? type_of_work : null,
-      supporting_documents: fileRecord
-      // supporting_documents: supporting_documents
+      supporting_documents: fileRecord,
+      nation_highway_and_state: ucc_nh_details
     };
     return data;
   } catch (error) {
