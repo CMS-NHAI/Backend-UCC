@@ -7,6 +7,7 @@ export const RESPONSE_MESSAGES = {
       STRETCH_DATA_ERROR: "An error occurred while creating required stretch based on given start and end chainages.",
       FILE_NOT_FOUND: "File not found",
       FILE_UPLOAD_FAILED: "File upload failed",
+      FILE_DISPLAY_SUCCESS: "File retrieved successfully.",
       USER_NOT_FOUND: "User not found",
       CONTRACT_NOT_FOUND: "Contract not found",
       DOCUMENT_TYPE_NOT_FOUND : "Document type not provided",
@@ -17,7 +18,11 @@ export const RESPONSE_MESSAGES = {
       NO_STRETCH_FOUND: "No stretches found for the given UCCs",
       NO_STRETCH_FOUND_FOR_ID: "No stretches found for the given Stretch ID",
       DRAFT_ALREADY_EXISTS:"A draft contract already exists for this user.",
-      UCC_LOG_NOT_FOUND: "User not found",
+      PAGE_DOES_NOT_EXIST: "Page does not exist",
+      UCC_LOG_NOT_FOUND: "No record found",
+      PIU_ALREADY_EXISTS:"PIU already exists for this user.",
+      NH_DETAILS_INSERTION_FAILED:"Error Occured While Saving NH Details",
+      INVALID_NH_DETAILS_REQUEST:'Invalid request. Provide valid NH details and NH state details.'
     },
     SUCCESS: {
         status:true,
@@ -28,6 +33,7 @@ export const RESPONSE_MESSAGES = {
         CONTRACT_DETAILS_SAVED: "Contract details saved successfully",
         CONTRACT_DETAILS_FETCHED: "Contract details fetched successfully",
         CONTRACT_UPDATED: "Contract updated successfully",
-        UCC_LOG_LIST : "Ucc log records retrieved successfully"
+        UCC_LOG_LIST : "Ucc log records retrieved successfully",
+        EXHAUST_PACKAGE_CODE: "You have exhausted the package Code. Please create a new Stretch or Project."
     },
   }

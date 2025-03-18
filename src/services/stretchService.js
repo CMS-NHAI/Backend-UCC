@@ -1,12 +1,12 @@
-import { Prisma } from "@prisma/client";
 import { prisma } from "../config/prismaClient.js";
 import { RESPONSE_MESSAGES } from "../constants/responseMessages.js";
 import { STATUS_CODES } from "../constants/statusCodeConstants.js";
 import APIError from "../utils/apiError.js";
 import logger from "../utils/logger.js";
 import { STRING_CONSTANT } from "../constants/stringConstant.js";
-import { getPhaseNameBeforeParentheses } from "../utils/uccUtil.js";
+import { getMyStretchesFilterConditions, getPhaseNameBeforeParentheses } from "../utils/uccUtil.js";
 import { exportToCSV } from "../utils/exportUtil.js";
+import { Prisma } from "@prisma/client";
 
 /**
  * Fetches the required stretch data by querying a GIS database and splitting a stretch line based on the provided chainages.
@@ -53,17 +53,25 @@ export async function fetchRequiredStretchData(uccId, startChainagesLat, startCh
 }
 
 /**
- * Counts the number of stretches for the given stretch IDs.
+ * Counts the number of distinct stretches (StretchID) based on the provided conditions.
  * 
- * @param {Array<number>} stretchIds - The array of stretch IDs to count.
- * @returns {Promise<number>} - The count of stretches for the provided stretch IDs.
+ * This function executes a SQL query using Prisma to count the number of unique 
+ * stretches (StretchID) that satisfy the given filter conditions.
+ * 
+ * @param {string} condition - The WHERE condition for filtering stretches, dynamically 
+ *                             generated in the calling function.
+ * @returns {Promise<number>} - The total count of distinct stretches matching the condition.
  */
-async function nhaiStretchCount(stretchIds) {
-    return await prisma.Stretches.count({
-        where: {
-            StretchID: { in: stretchIds }
-        }
-    });
+async function nhaiStretchCount(condition) {
+    const countResult = await prisma.$queryRaw`
+        SELECT COUNT(DISTINCT s."StretchID")
+        FROM "nhai_gis"."Stretches" s
+        LEFT JOIN "nhai_gis"."Corridors" c ON s."CorridorID" = c."CorridorID"
+        LEFT JOIN "tenant_nhai"."project_phase_master" ppm ON LPAD(s."PhaseCode", 2, '0') = LPAD(ppm."phase_code", 2, '0')
+        LEFT JOIN "nhai_gis"."UCCSegments" ucc ON s."StretchID" = ucc."StretchID"
+        WHERE ${Prisma.raw(condition)}
+    `;
+    return countResult[0]?.count ? Number(countResult[0].count) : 0;
 }
 
 /**
@@ -74,8 +82,9 @@ async function nhaiStretchCount(stretchIds) {
  * @param {Array<number>} stretchIds - The array of stretch IDs to fetch details for.
  * @returns {Promise<Object>} - An object containing the stretches data and pagination details.
  */
-async function nhaiStretchDetails(page, pageSize, stretchIds) {
-    const totalCount = await nhaiStretchCount(stretchIds);
+async function nhaiStretchDetails(page, pageSize, stretchIds, req) {
+    const whereConditions = getMyStretchesFilterConditions(req, stretchIds);
+    const totalCount = await nhaiStretchCount(whereConditions);
     const totalPages = Math.ceil(totalCount / pageSize);
     const pagination = {
         page: 1,
@@ -92,6 +101,7 @@ async function nhaiStretchDetails(page, pageSize, stretchIds) {
     }
     const currentPage = page > totalPages ? totalPages : page;
 
+    console.time("MY Stretches API Fetch Stretches with geoJSON.");
     const stretches = await prisma.$queryRaw`
             SELECT 
                 s.id,
@@ -113,8 +123,10 @@ async function nhaiStretchDetails(page, pageSize, stretchIds) {
                 "nhai_gis"."Corridors" c ON s."CorridorID" = c."CorridorID"
             LEFT JOIN 
                 "tenant_nhai"."project_phase_master" ppm ON LPAD(s."PhaseCode", 2, '0') = LPAD(ppm."phase_code", 2, '0')
+            LEFT JOIN
+                "nhai_gis"."UCCSegments" ucc ON s."StretchID" = ucc."StretchID"
             WHERE 
-                s."StretchID" IN (${Prisma.join(stretchIds)})
+                ${Prisma.raw(whereConditions)}
             GROUP BY 
                 s.id, s.geom, s."PhaseCode", s."CorridorCode", s."StretchCode", s."NH", s."ProgramName", s."ProjectName",
                 s."Phase", s."Scheme", s."StretchID", s."CorridorID"
@@ -122,8 +134,10 @@ async function nhaiStretchDetails(page, pageSize, stretchIds) {
         `;
 
 
+    console.timeEnd("MY Stretches API Fetch Stretches with geoJSON.");
     logger.info("Stretches data fetched successfully. ");
 
+    console.time("MY Stretches API Fetch UCC Segements time.");
     const uccSegments = await prisma.UCCSegments.findMany({
         where: {
             StretchID: { in: stretchIds },
@@ -136,6 +150,7 @@ async function nhaiStretchDetails(page, pageSize, stretchIds) {
         },
     });
 
+    console.timeEnd("MY Stretches API Fetch UCC Segements time.");
     // Group UCC segments by StretchID and concatenate PIU, RO, UCC values
     const uccSegmentsByStretch = uccSegments.reduce((acc, uccSegment) => {
         if (!acc[uccSegment.StretchID]) {
@@ -151,26 +166,24 @@ async function nhaiStretchDetails(page, pageSize, stretchIds) {
         return acc;
     }, {});
 
-    const uccCounts = await prisma.UCCSegments.groupBy({
-        by: ['StretchID'],
-        _count: {
-            UCC: true,
-        },
-        where: {
-            StretchID: { in: stretchIds },
-        },
-    });
+    console.time("MY Stretches API Contracts Unique Count");
+    const uccCounts = await prisma.$queryRaw`
+        SELECT "StretchID", COUNT(DISTINCT "UCC") AS uniquecount
+        FROM "nhai_gis"."UCCSegments"
+        WHERE "StretchID" IN (${Prisma.join(stretchIds)})
+        GROUP BY "StretchID";
+    `;
+    console.timeEnd("MY Stretches API Contracts Unique Count");
 
     const data = stretches.map((item) => {
         const uniquePhases = Array.from(new Set(item.phases.map(getPhaseNameBeforeParentheses)));
         const uccCount = uccCounts.find(count => count.StretchID === item.StretchID);
         const uccData = uccSegmentsByStretch[item.StretchID] || { PIUs: [], RO: [], UCCs: [] };
-
         return {
             ...item,
             geojson: JSON.parse(item.geojson),
             phases: uniquePhases,
-            ucc_count: uccCount ? uccCount._count.UCC : 0,
+            ucc_count: uccCount ? Number(uccCount.uniquecount) : 0,
             PIU: uccData.PIUs.join(STRING_CONSTANT.COMMA) || null,
             RO: uccData.RO.join(STRING_CONSTANT.COMMA) || null,
             type: STRING_CONSTANT.NHAI
@@ -211,7 +224,7 @@ async function morthProjectDetails(page, pageSize, stretchIds) {
     return {
         data,
         pagination: {
-            page: 0,
+            page: 1,
             pageSize,
             totalCount,
             totalPages,
@@ -227,10 +240,10 @@ async function morthProjectDetails(page, pageSize, stretchIds) {
  * @param {Array<number>} stretchIds - The array of stretch IDs to fetch details for.
  * @returns {Promise<Object>} - An object containing the combined stretches data and pagination details.
  */
-async function combinedProjectDetails(page, pageSize, stretchIds) {
-    const stretchData = await nhaiStretchDetails(page, pageSize, stretchIds);
+async function combinedProjectDetails(page, pageSize, stretchIds, req) {
+    const stretchData = await nhaiStretchDetails(page, pageSize, stretchIds, req);
     const morthData = await morthProjectDetails(page, pageSize, stretchIds);
-    const totalCount = await morthCount(stretchIds) + await nhaiStretchCount(stretchIds);
+    const totalCount = await morthCount(stretchIds) + await nhaiStretchCount(getMyStretchesFilterConditions(req, stretchIds));
     const totalPages = Math.ceil(totalCount / pageSize);
     const currentPage = page > totalPages ? totalPages : page;
 
@@ -255,16 +268,16 @@ async function combinedProjectDetails(page, pageSize, stretchIds) {
  * @param {Array<number>} stretchIds - The array of stretch IDs to fetch details for.
  * @returns {Promise<Object>} - An object containing the stretches data and pagination details for the specified project type.
  */
-async function projectDetails(page, pageSize, projectType, stretchIds) {
+async function projectDetails(page, pageSize, projectType, stretchIds, req) {
     switch (projectType.toLowerCase()) {
         case STRING_CONSTANT.NHAI.toLowerCase():
-            return await nhaiStretchDetails(page, pageSize, stretchIds);
+            return await nhaiStretchDetails(page, pageSize, stretchIds, req);
         case STRING_CONSTANT.MORTH.toLowerCase():
             return await morthProjectDetails(page, pageSize, stretchIds);
         case STRING_CONSTANT.ALL.toLowerCase():
-            return await combinedProjectDetails(page, pageSize, stretchIds);
+            return await combinedProjectDetails(page, pageSize, stretchIds, req);
         default:
-            throw new Error(`Invalid project type: ${projectType}`);
+            throw new APIError(STATUS_CODES.BAD_REQUEST, `Invalid project type: ${projectType}`);
     }
 }
 
@@ -296,7 +309,7 @@ export async function getUserStretches(req, userId, page, pageSize, projectType)
         const stretchIds = await getUserStretchIds(userId);
         logger.info("Stretch IDs fetched successfully.");
 
-        return projectDetails(page, pageSize, projectType, stretchIds);
+        return projectDetails(page, pageSize, projectType, stretchIds, req);
     } catch (error) {
         logger.error({
             message: RESPONSE_MESSAGES.ERROR.REQUEST_PROCESSING_ERROR,
@@ -480,7 +493,7 @@ async function getUserStretchIds(userId) {
     return stretchIds;
 }
 
-export async function myStretchExportData(req, userId) {
+export async function myStretchExportData(userId) {
     try {
         const stretchIds = await getUserStretchIds(userId);
 
@@ -506,26 +519,67 @@ export async function myStretchExportData(req, userId) {
         `;
         logger.info("Stretches data fetched successfully. ");
 
-        return stretches.map(record => ({
-            USC: record.StretchID,
-            StretchName: record.ProjectName,
-            Length: record.length_in_km,
-            Phase: record.phases,
-            Corridor: record.corridors
-        }));
+        const uccSegments = await prisma.UCCSegments.findMany({
+            where: {
+                StretchID: { in: stretchIds },
+            },
+            select: {
+                StretchID: true,
+                PIU: true,
+                RO: true,
+            },
+        });
+
+        // Group UCC segments by StretchID and concatenate PIU, RO, UCC values
+        const uccSegmentsByStretch = uccSegments.reduce((acc, uccSegment) => {
+            if (!acc[uccSegment.StretchID]) {
+                acc[uccSegment.StretchID] = {
+                    PIUs: [],
+                    RO: [],
+                };
+            }
+            if (uccSegment.PIU) acc[uccSegment.StretchID].PIUs.push(uccSegment.PIU);
+            if (uccSegment.RO) acc[uccSegment.StretchID].RO.push(uccSegment.RO);
+            return acc;
+        }, {});
+
+        const uccCounts = await prisma.$queryRaw`
+            SELECT "StretchID", COUNT(DISTINCT "UCC") AS uniquecount
+            FROM "nhai_gis"."UCCSegments"
+            WHERE "StretchID" IN (${Prisma.join(stretchIds)})
+            GROUP BY "StretchID";
+        `;
+
+        return stretches.map((item) => {
+            const uccCount = uccCounts.find(count => count.StretchID === item.StretchID);
+            const uccData = uccSegmentsByStretch[item.StretchID] || { PIUs: [], RO: [] };
+            return {
+                USC: item.StretchID,
+                StretchName: item.ProjectName,
+                Length: item.length_in_km,
+                Phase: item.phases,
+                Corridor: item.corridors,
+                RO: uccData.RO.join(STRING_CONSTANT.COMMA) || null,
+                PIU: uccData.PIUs.join(STRING_CONSTANT.COMMA) || null,
+                ActiveContracts: uccCount ? Number(uccCount.uniquecount) : 0
+            };
+        });
     } catch (error) {
         throw error;
     }
 }
 
-export async function exportMystretchesData(req, userId, res) {
-    const stretchDetails = await myStretchExportData(req, userId);
+export async function exportMystretchesData(userId, res) {
+    const stretchDetails = await myStretchExportData(userId);
     const headers = [
         { id: 'USC', title: 'USC' },
         { id: 'StretchName', title: 'Stretch Name' },
         { id: 'Length', title: 'Length' },
         { id: 'Phase', title: 'Phase' },
-        { id: 'Corridor', title: 'Corridor' }
+        { id: 'Corridor', title: 'Corridor' },
+        { id: 'RO', title: 'RO' },
+        { id: 'PIU', title: 'PIU' },
+        { id: 'ActiveContracts', title: 'Active Contracts' }
     ];
 
     return await exportToCSV(res, stretchDetails, STRING_CONSTANT.MY_STRETCHES, headers);

@@ -15,11 +15,12 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.750.0",
+    "@aws-sdk/client-s3": "^3.758.0",
+    "@aws-sdk/s3-request-presigner": "^3.758.0",
     "@babel/runtime": "^7.26.0",
     "@elastic/elasticsearch": "^8.17.0",
     "@fast-csv/format": "^5.0.2",
-    "@prisma/client": "^6.1.0",
+    "@prisma/client": "^6.4.1",
     "@redis/json": "^1.0.7",
     "axios": "^1.7.9",
     "bcryptjs": "^2.4.3",
@@ -57,6 +58,6 @@
     "@babel/preset-env": "^7.26.0",
     "nodemon": "^2.0.12",
     "prettier": "^2.4.0",
-    "prisma": "^6.1.0"
+    "prisma": "^6.4.1"
   }
 }

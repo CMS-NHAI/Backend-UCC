@@ -3,6 +3,7 @@ import { RESPONSE_MESSAGES } from '../constants/responseMessages.js';
 import { STATUS_CODES } from '../constants/statusCodeConstants.js';
 import { errorResponse } from '../helpers/errorHelper.js';
 import logger from '../utils/logger.js';
+import { saveNHDetailsService } from '../services/contractService.js';
 /**
  * Controller to save the contract details.
  * This function saves the contract data to the database.
@@ -17,7 +18,7 @@ export const saveContractDetails =async(req,res)=>{
     try {
       const data = await insertContractDetails(req);
   
-      res.status(STATUS_CODES.CREATED).json({
+      res.status(STATUS_CODES.OK).json({
         status: true,
         message: RESPONSE_MESSAGES.SUCCESS.CONTRACT_DETAILS_SAVED,
         data
@@ -27,3 +28,16 @@ export const saveContractDetails =async(req,res)=>{
       return await errorResponse(req, res, error);
     }
   }
+
+  export const saveNHdetails = async (req, res) => {
+ try {
+      await saveNHDetailsService(req);
+  
+      res.status(STATUS_CODES.OK).json({
+        status: true,
+        message: RESPONSE_MESSAGES.SUCCESS.CONTRACT_DETAILS_SAVED,
+      });
+    } catch (error) {
+      return await errorResponse(req, res, error);
+  }
+}

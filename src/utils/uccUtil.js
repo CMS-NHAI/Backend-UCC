@@ -1,3 +1,8 @@
+/**
+ * @author Deepak
+ */
+import { STRING_CONSTANT } from "../constants/stringConstant.js";
+
 export function getSegmentInsertData(segment, typeOfWork, userId, typeOfIssue, uccId) {
     const {
         startChainage,
@@ -60,4 +65,46 @@ export function calculateSegmentLength(startChainage, endChainage) {
     const kmDifference = endChainage.kilometer - startChainage.kilometer;
     const meterDifference = endChainage.meter - startChainage.meter;
     return kmDifference + meterDifference / 1000;  // Convert meters to kilometers
-  }
+}
+
+/**
+ * Generates a SQL WHERE clause for filtering stretches based on provided request parameters.
+ * 
+ * This function dynamically constructs a SQL condition string based on filters such as 
+ * corridor, program, phase, scheme, RO, and PIU. It ensures that only stretches matching 
+ * the given criteria are selected.
+ * 
+ * @param {Object} req - The HTTP request object containing filter parameters in `req.body`.
+ * @param {string[]} stretchIds - An array of StretchIDs to filter results.
+ * @returns {string} - A dynamically generated SQL WHERE clause for filtering stretches.
+ */
+export function getMyStretchesFilterConditions(req, stretchIds) {
+    const { corridor, program, phase, scheme, ro, piu, searchTerm } = req.body;
+    const stringStretchIds = stretchIds.map(id => `'${id}'`).join(STRING_CONSTANT.COMMA);
+    // Construct WHERE conditions dynamically based on the filters
+    let whereConditions = `s."StretchID" IN (${stringStretchIds})`;
+
+    if (searchTerm) {
+        whereConditions += `AND s."StretchID"::TEXT ILIKE '%${searchTerm}%'`;
+    } else {
+        if (corridor && corridor.length > 0) {
+            whereConditions += ` AND c."CorridorName" IN (${corridor.map(crd => `'${crd}'`).join(STRING_CONSTANT.COMMA)})`;
+        }
+        if (program && program.length > 0) {
+            whereConditions += ` AND s."ProgramName" IN (${program.map(program => `'${program}'`).join(STRING_CONSTANT.COMMA)})`;
+        }
+        if (phase && phase.length > 0) {
+            whereConditions += ` AND s."Phase" IN (${phase.map(phase => `'${phase}'`).join(STRING_CONSTANT.COMMA)})`;
+        }
+        if (scheme && scheme.length > 0) {
+            whereConditions += ` AND s."Scheme" IN (${scheme.map(scheme => `'${scheme}'`).join(STRING_CONSTANT.COMMA)})`;
+        }
+        if (ro && ro.length > 0) {
+            whereConditions += ` AND ucc."RO" IN (${ro.map(ro => `'${ro}'`).join(STRING_CONSTANT.COMMA)})`;
+        }
+        if (piu && piu.length > 0) {
+            whereConditions += ` AND ucc."PIU" IN (${piu.map(piu => `'${piu}'`).join(STRING_CONSTANT.COMMA)})`;
+        }
+    }
+    return whereConditions;
+}

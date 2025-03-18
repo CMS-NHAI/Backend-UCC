@@ -38,6 +38,7 @@ export const addUccLogService = async (userId, ucc_id, data) => {
 
 export const getUccLogService = async (req, userId, ucc_id, page, pageSize, feature_module) => {
 
+    
     const skip = (page - 1) * pageSize;
     const take = pageSize;
     const totalCount = await uccLogCount(userId, feature_module);
@@ -46,7 +47,7 @@ export const getUccLogService = async (req, userId, ucc_id, page, pageSize, feat
 
     const whereCondition = {
         updated_by: userId,
-        ucc_id: parseInt(ucc_id),
+        ucc_id: ucc_id,
         ...(feature_module ? { feature_module: feature_module } : {}),
     };
 
@@ -60,10 +61,11 @@ export const getUccLogService = async (req, userId, ucc_id, page, pageSize, feat
             changed_at: true,
             created_at: true,
             updated_by: true,
+            updated_at: true,
             feature_module: true,
             user_master: {
                 select: {
-                    user_id: true, // Assuming `user_id` is in `user_master`
+                    user_id: true,
                     name: true,
                     first_name: true,
                     middle_name: true,

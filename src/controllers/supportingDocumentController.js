@@ -4,8 +4,7 @@ import { STATUS_CODES } from '../constants/statusCodeConstants.js';
 import { errorResponse } from '../helpers/errorHelper.js';
 import APIError from '../utils/apiError.js';
 import logger from "../utils/logger.js";
-import { getMultipleFileFromS3, deleteMultipleFileService, uploadMultipleFileService } from '../services/uccService.js';
-// import uccService from '../services/uccService.js';
+import { getMultipleFileFromS3, deleteMultipleFileService, uploadMultipleFileService, uploadFileService } from '../services/uccService.js';
 
 /**
  * Method : POST
@@ -41,38 +40,18 @@ export const getSupportingDoc = async (req, res) => {
             throw new APIError(STATUS_CODES.BAD_REQUEST, "User not authenticated");
         }
 
-        // Fetch multiple files from S3
         const files = await getMultipleFileFromS3(req, userId);
-        // response.data.pipe(res);
 
-        // Ensure that files are returned
         if (!files || files.length === 0) {
             return res.status(404).json({ message: "No files found for this user" });
         }
 
-        // Serve each file one by one
-        for (const file of files) {
-            if (file.error) {
-                console.error(`Error fetching file: ${file.fileName} - ${file.error}`);
-                continue;
-            }
-
-            if (file.data) {
-                res.setHeader(HEADER_CONSTANTS.CONTENT_TYPE, HEADER_CONSTANTS.PDF_CONTENT_TYPE);
-                res.setHeader(HEADER_CONSTANTS.CONTENT_DISPOSITION, `attachment; filename="${files.fileName}"`);
-                file.data.pipe(res);
-                return; // Return after sending the first file
-            } else {
-                return res.status(500).json({ message: `File data for ${file.fileName} is missing` });
-            }
-        }
+      res.status(STATUS_CODES.OK).json({ success:true, messsage:RESPONSE_MESSAGES.FILE_DISPLAY_SUCCESS, data:files})
 
     } catch (error) {
-        // Catch and return any errors that happen during the process
         return await errorResponse(req, res, error);
     }
 };
-
 
 /**
  * Method : @Delete
@@ -100,3 +79,27 @@ export const deleteSupportingDoc = async (req, res) => {
         return await errorResponse(req, res, error);
     }
 };
+
+export const uploadShapeFile = async(req, res)=>{
+
+    try{
+
+        const savedFile = await uploadFileService(req, res);
+        
+        res.status(STATUS_CODES.CREATED).json({
+            success:STATUS_CODES.SUCCESS,
+            status:STATUS_CODES.CREATED,
+            message:RESPONSE_MESSAGES.SUCCESS.FILE_UPLOADED,
+            data: savedFile
+        })
+
+    }catch(error){
+
+        res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+            success:STATUS_CODES.FAIL,
+            status:STATUS_CODES.INTERNAL_SERVER_ERROR,
+            message:error.message
+        })
+    }
+
+}

@@ -12,8 +12,11 @@ export const STRING_CONSTANT = Object.freeze({
     MY_STRETCHES: "MyStretches",
     COMMA: ", ",
     EMPTY: "",
-    AWARDED:"awarded",
+    AWARDED: "awarded",
     CONTRACT_DETAILS: "ContractDetails",
+    BALANCE_FOR_AWARD: "Balance For Award",
+    STRING_XX: "XX",
+    DESC: "desc"
 });
 
 export const ALLOWED_TYPES_OF_WORK = Object.freeze([
