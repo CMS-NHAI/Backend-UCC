@@ -598,98 +598,74 @@ export const getcontractListService = async (req, res) => {
   if (!userId) {
     throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
   }
-  let where = {};
-  if (stretchIds.length > 0) {
-    where.StretchID = {
-      in: stretchIds,
-    }
+
+  let whereClauses = [];
+
+  if (stretchIds?.length > 0) {
+    whereClauses.push(`"StretchID" IN (${stretchIds.map(id => `'${id}'`).join(',')})`);
   } else {
     let getUserUccs = await prisma.ucc_user_mappings.findMany({
-      where: {
-        user_id: userId,
-      },
-      select: {
-        ucc_id: true,
-      },
+      where: { user_id: userId },
+      select: { ucc_id: true },
     });
-    getUserUccs = getUserUccs.map((item) => {
-      return item.ucc_id;
-    });
-    stretchIds = getUserUccs;
-    where.UCC = {
-      in: stretchIds,
+    
+    getUserUccs = getUserUccs.map((item) => `'${item.ucc_id}'`);
+    if (getUserUccs.length > 0) {
+      whereClauses.push(`"UCC" IN (${getUserUccs.join(',')})`);
     }
   }
 
   if (search?.length > 0) {
-    where.OR = [
-      { ProjectName: { contains: search, mode: 'insensitive' } },
-      { PIU: { contains: search, mode: 'insensitive' } },
-      { UCC: { contains: search, mode: 'insensitive' } },
-      { TypeofWork: { contains: search, mode: 'insensitive' } },
-    ];
+    whereClauses.push(`(
+      "ProjectName" ILIKE '%${search}%'
+      OR "PIU" ILIKE '%${search}%'
+      OR "UCC" ILIKE '%${search}%'
+      OR "TypeofWork" ILIKE '%${search}%'
+    )`);
   }
 
-  let orConditions = [];
+  if (piu?.length) whereClauses.push(`"PIU" IS NOT NULL AND "PIU" IN (${piu.map(p => `'${p}'`).join(",")})`);
+  if (ro?.length) whereClauses.push(`"RO" IS NOT NULL AND "RO" IN (${ro.map(r => `'${r}'`).join(",")})`);
+  if (program?.length) whereClauses.push(`"ProgramName" IS NOT NULL AND "ProgramName" IN (${program.map(p => `'${p}'`).join(",")})`);
+  if (phase?.length) whereClauses.push(`"PhaseCode" IS NOT NULL AND "PhaseCode" IN (${phase.map(p => `'${p}'`).join(",")})`);
+  if (typeOfWork?.length) whereClauses.push(`"TypeofWork" IS NOT NULL AND "TypeofWork" IN (${typeOfWork.map(t => `'${t}'`).join(",")})`);
+  if (scheme?.length) whereClauses.push(`"Scheme" IS NOT NULL AND "Scheme" IN (${scheme.map(s => `'${s}'`).join(",")})`);
+  if (corridor?.length) whereClauses.push(`"CorridorCode" IS NOT NULL AND "CorridorCode" IN (${corridor.map(c => `'${c}'`).join(",")})`);
 
-  if (piu?.length) orConditions.push({ PIU: { in: piu } });
-  if (ro?.length) orConditions.push({ RO: { in: ro } });
-  if (program?.length) orConditions.push({ ProgramName: { in: program } });
-  if (phase?.length) orConditions.push({ PhaseCode: { in: phase } });
-  if (typeOfWork?.length) orConditions.push({ TypeofWork: { in: typeOfWork } });
-  if (scheme?.length) orConditions.push({ Scheme: { in: scheme } });
-  if (corridor?.length) orConditions.push({ CorridorCode: { in: corridor } });
+  const whereCondition = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' OR ')}` : '';
 
-  if (orConditions.length > 0) {
-    where = { OR: orConditions }
-  }
   const [result, totalCount] = await Promise.all([
-    prisma.UCCSegments.findMany({
-      where,
-      distinct: ['UCC'],
-      select: {
-        TypeofWork: true,
-        StretchID: true,
-        ProjectName: true,
-        PIU: true,
-        UCC: true,
-        TotalLength: true,
-        RevisedLength: true,
-        CorridorCode: true,
-        RO: true,
-        Scheme: true,
-        PhaseCode: true,
-        ProgramName: true,
-      },
-      skip,
-      take: limit,
-    }),
-    prisma.UCCSegments.count({ where })
+    prisma.$queryRawUnsafe(`
+      SELECT DISTINCT ON ("UCC") "UCC", "TypeofWork", "StretchID", "ProjectName", "PIU", 
+        "TotalLength", "RevisedLength", "CorridorCode", "RO", "Scheme", 
+        "PhaseCode", "ProgramName", public.ST_AsGeoJSON(geom) AS geojson
+      FROM "nhai_gis"."UCCSegments"
+      ${whereCondition}
+      ORDER BY "UCC"
+      LIMIT ${limit} OFFSET ${skip}
+    `),
+    prisma.$queryRawUnsafe(`
+      SELECT COUNT(*)::int AS count FROM "nhai_gis"."UCCSegments" ${whereCondition}
+    `),
   ]);
 
-
-  const ids = await result.map((item) => { return item.StretchID; });
-  const strectchDetails = await prisma.Stretches.findMany({
-    where: {
-      StretchID: {
-        in: ids,
-      },
-    },
-    select: {
-      StretchID: true,
-      ProjectName: true,
-    },
+const newIds = result.map(item => item.UCC);
+  const ids = result.map(item => item.StretchID);
+  const stretchDetails = await prisma.Stretches.findMany({
+    where: { StretchID: { in: ids } },
+    select: { StretchID: true, ProjectName: true },
   });
-  const stretchMap = strectchDetails.reduce((acc, item) => {
+
+  const stretchMap = stretchDetails.reduce((acc, item) => {
     acc[item.StretchID] = item.ProjectName;
     return acc;
   }, {});
 
-  const finalContractList = await result.map((item) => {
-    item.status = STRING_CONSTANT.AWARDED;
-    item.stretchName = stretchMap[item.StretchID];
-    return item
-  });
+  const finalContractList = result.map((item) => ({
+    ...item,
+    status: STRING_CONSTANT.AWARDED,
+    stretchName: stretchMap[item.StretchID],
+  }));
 
   if (exports) {
     const headers = [
@@ -700,17 +676,18 @@ export const getcontractListService = async (req, res) => {
       { id: 'TotalLength', title: 'Length' },
       { id: 'status', title: 'Status' }
     ];
-
     return await exportToCSV(res, finalContractList, STRING_CONSTANT.CONTRACT_DETAILS, headers);
   }
+
   return {
     page,
     limit,
     totalCount,
-    totalPages: Math.ceil(totalCount / limit),
-    finalContractList
+    totalPages: Math.ceil(totalCount[0].count / limit),
+    finalContractList,
   };
-}
+};
+
 
 export const basicDetailsOnReviewPage = async (id, userId) => {
   try {
