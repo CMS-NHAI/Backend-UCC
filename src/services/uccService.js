@@ -107,7 +107,7 @@ export const uploadFileService = async (req, res) => {
       is_deleted: false,
       created_by: user_id.toString(),
       status: STRING_CONSTANT.DRAFT,
-      ucc_id: uccId.toString()
+      ucc_id: parseInt(uccId)
     },
   });
 
@@ -286,6 +286,17 @@ export async function insertTypeOfWork(req, userId, reqBody) {
     });
 
     const projectNames = stretchRecords.map(record => record.ProjectName);
+    let uccId = draftUccId;
+    if (!draftUccId) {
+      const dbUccId = await prisma.ucc_master.create({
+        data: {
+          stretch_id: stretchUsc,
+          status: STRING_CONSTANT.DRAFT,
+        },
+        select: { ucc_id: true },
+      });
+      uccId = dbUccId.ucc_id;
+    }
 
     for (const work of typeOfWorks) {
       const { workType, segment, blackSpot } = work;
@@ -323,7 +334,7 @@ export async function insertTypeOfWork(req, userId, reqBody) {
           const segmentLength = calculateSegmentLength(item.startChainage, item.endChainage);
           totalContractLength += segmentLength;
 
-          const segmentData = await getSegmentInsertData(item, typeOfWorkId, userId, TYPE_OF_ISSUES.SEGMENT, draftUccId);
+          const segmentData = await getSegmentInsertData(item, typeOfWorkId, userId, TYPE_OF_ISSUES.SEGMENT, uccId);
           return segmentData;
         });
         const resolvedSegmentData = await Promise.all(segmentNamePromises);
@@ -339,7 +350,7 @@ export async function insertTypeOfWork(req, userId, reqBody) {
             resultName += " and ";
           }
 
-          const blackSpotData = await getBlackSpotInsertData(item, typeOfWorkId, userId, TYPE_OF_ISSUES.BLACK_SPOT, draftUccId);
+          const blackSpotData = await getBlackSpotInsertData(item, typeOfWorkId, userId, TYPE_OF_ISSUES.BLACK_SPOT, uccId);
           return blackSpotData;
         });
         const resolvedBlackSpotData = await Promise.all(blackSpotNamePromises);
@@ -350,20 +361,7 @@ export async function insertTypeOfWork(req, userId, reqBody) {
     await prisma.ucc_type_of_work_location.createMany({
       data: dataToInsert,
     });
-
     logger.info("Type of work created successfully.");
-
-    let uccId = draftUccId;
-    if (!draftUccId) {
-      const dbUccId = await prisma.ucc_master.create({
-        data: {
-          stretch_id: stretchUsc,
-          status: STRING_CONSTANT.DRAFT,
-        },
-        select: { ucc_id: true },
-      });
-      uccId = dbUccId.ucc_id;
-    }
 
     const formattedContractLength = (totalContractLength).toFixed(2);
 
