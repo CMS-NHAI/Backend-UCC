@@ -70,7 +70,7 @@ export const getFilterData = async (req, res) => {
             program,
             phase,
             schemes,
-            corridor
+            corridor 
           }
           return res.status(STATUS_CODES.OK).json({
             success: true,
