@@ -753,7 +753,7 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
         start_distance_metre: true,
         end_distance_km: true,
         end_distance_metre: true,
-        start_distance_km: true,
+        // start_distance_km: true,
         startlatitude: true,
         startlongitude: true,
         endlatitude: true,
@@ -776,7 +776,7 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
       },
     });
         
-    const ucc_nh_details = await prisma.ucc_nh_state_details.findMany({
+    const ucc_nh_details_data = await prisma.ucc_nh_state_details.findMany({
       where: {
         ucc_id: uccRecord.ucc_id,
       },
@@ -791,15 +791,17 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
           district_name: true
         }
       },
-      ucc_nh_details: {
-      select: {
-        nh_number: true,
-        start_chainage: true,
-        end_chainage: true,
-        length: true,
-        status: true
-      },
-    },
+      ucc_nh_details: true
+    //   ucc_nh_details: {
+    //   select: {
+    //     id: true,
+    //     nh_number: true,
+    //     start_chainage: true,
+    //     end_chainage: true,
+    //     length: true,
+    //     status: true
+    //   },
+    // },
       },
     });
     
@@ -814,7 +816,7 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
       or_office_master: uccRecord.or_office_master.office_name,
       type_of_work: type_of_work ? type_of_work : null,
       supporting_documents: fileRecord,
-      nation_highway_and_state: ucc_nh_details
+      nation_highway_and_state: ucc_nh_details_data
     };
     return data;
   } catch (error) {
