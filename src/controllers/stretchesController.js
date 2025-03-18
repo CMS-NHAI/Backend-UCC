@@ -207,7 +207,6 @@ export async function testUccTimings(req, res) {
             data
         });
     } catch (error) {
-        console.log("ERRRRRR Test   :::::::: ", error);
         await errorResponse(req, res, error);
     }
 }

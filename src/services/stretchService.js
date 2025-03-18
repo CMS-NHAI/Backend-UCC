@@ -138,33 +138,30 @@ async function nhaiStretchDetails(page, pageSize, stretchIds, req) {
     logger.info("Stretches data fetched successfully. ");
 
     console.time("MY Stretches API Fetch UCC Segements time.");
-    const uccSegments = await prisma.UCCSegments.findMany({
-        where: {
-            StretchID: { in: stretchIds },
-        },
-        select: {
-            StretchID: true,
-            PIU: true,
-            RO: true,
-            UCC: true,
-        },
-    });
+    // const uccSegments = await prisma.UCCSegments.findMany({
+    //     where: {
+    //         StretchID: { in: stretchIds },
+    //     },
+    //     select: {
+    //         StretchID: true,
+    //         PIU: true,
+    //         RO: true,
+    //         UCC: true,
+    //     },
+    // });
+
+    const uccSegments = await prisma.$queryRaw`
+        SELECT 
+            "StretchID",
+            ARRAY_AGG(DISTINCT "UCC") AS unique_uccs,
+            ARRAY_AGG(DISTINCT "PIU") AS unique_pius,
+            ARRAY_AGG(DISTINCT "RO") AS unique_ros
+        FROM "nhai_gis"."UCCSegments"
+        WHERE "StretchID" IN (${Prisma.join(stretchIds)})
+        GROUP BY "StretchID";
+    `;
 
     console.timeEnd("MY Stretches API Fetch UCC Segements time.");
-    // Group UCC segments by StretchID and concatenate PIU, RO, UCC values
-    const uccSegmentsByStretch = uccSegments.reduce((acc, uccSegment) => {
-        if (!acc[uccSegment.StretchID]) {
-            acc[uccSegment.StretchID] = {
-                PIUs: [],
-                RO: [],
-                UCCs: [],
-            };
-        }
-        if (uccSegment.PIU) acc[uccSegment.StretchID].PIUs.push(uccSegment.PIU);
-        if (uccSegment.RO) acc[uccSegment.StretchID].RO.push(uccSegment.RO);
-        if (uccSegment.UCC) acc[uccSegment.StretchID].UCCs.push(uccSegment.UCC);
-        return acc;
-    }, {});
 
     console.time("MY Stretches API Contracts Unique Count");
     const uccCounts = await prisma.$queryRaw`
@@ -178,15 +175,16 @@ async function nhaiStretchDetails(page, pageSize, stretchIds, req) {
     const data = stretches.map((item) => {
         const uniquePhases = Array.from(new Set(item.phases.map(getPhaseNameBeforeParentheses)));
         const uccCount = uccCounts.find(count => count.StretchID === item.StretchID);
-        const uccData = uccSegmentsByStretch[item.StretchID] || { PIUs: [], RO: [], UCCs: [] };
+        const uccData = uccSegments.find(ucc => ucc.StretchID === item.StretchID);
         return {
             ...item,
             geojson: JSON.parse(item.geojson),
             phases: uniquePhases,
             ucc_count: uccCount ? Number(uccCount.uniquecount) : 0,
-            PIU: uccData.PIUs.join(STRING_CONSTANT.COMMA) || null,
-            RO: uccData.RO.join(STRING_CONSTANT.COMMA) || null,
-            type: STRING_CONSTANT.NHAI
+            PIU: uccData.unique_pius.join(STRING_CONSTANT.COMMA) || null,
+            RO: uccData.unique_ros.join(STRING_CONSTANT.COMMA) || null,
+            type: STRING_CONSTANT.NHAI,
+            uccIds: uccData.unique_uccs
         };
     });
     pagination.page = currentPage;
@@ -311,6 +309,7 @@ export async function getUserStretches(req, userId, page, pageSize, projectType)
 
         return projectDetails(page, pageSize, projectType, stretchIds, req);
     } catch (error) {
+        console.log("ERRRRRRR ::::::::::::: ", error);
         logger.error({
             message: RESPONSE_MESSAGES.ERROR.REQUEST_PROCESSING_ERROR,
             error: error,
@@ -519,29 +518,16 @@ export async function myStretchExportData(userId) {
         `;
         logger.info("Stretches data fetched successfully. ");
 
-        const uccSegments = await prisma.UCCSegments.findMany({
-            where: {
-                StretchID: { in: stretchIds },
-            },
-            select: {
-                StretchID: true,
-                PIU: true,
-                RO: true,
-            },
-        });
-
-        // Group UCC segments by StretchID and concatenate PIU, RO, UCC values
-        const uccSegmentsByStretch = uccSegments.reduce((acc, uccSegment) => {
-            if (!acc[uccSegment.StretchID]) {
-                acc[uccSegment.StretchID] = {
-                    PIUs: [],
-                    RO: [],
-                };
-            }
-            if (uccSegment.PIU) acc[uccSegment.StretchID].PIUs.push(uccSegment.PIU);
-            if (uccSegment.RO) acc[uccSegment.StretchID].RO.push(uccSegment.RO);
-            return acc;
-        }, {});
+        const uccSegments = await prisma.$queryRaw`
+            SELECT 
+                "StretchID",
+                ARRAY_AGG(DISTINCT "UCC") AS unique_uccs,
+                ARRAY_AGG(DISTINCT "PIU") AS unique_pius,
+                ARRAY_AGG(DISTINCT "RO") AS unique_ros
+            FROM "nhai_gis"."UCCSegments"
+            WHERE "StretchID" IN (${Prisma.join(stretchIds)})
+            GROUP BY "StretchID";
+        `;
 
         const uccCounts = await prisma.$queryRaw`
             SELECT "StretchID", COUNT(DISTINCT "UCC") AS uniquecount
@@ -552,15 +538,15 @@ export async function myStretchExportData(userId) {
 
         return stretches.map((item) => {
             const uccCount = uccCounts.find(count => count.StretchID === item.StretchID);
-            const uccData = uccSegmentsByStretch[item.StretchID] || { PIUs: [], RO: [] };
+            const uccData = uccSegments.find(ucc => ucc.StretchID === item.StretchID);
             return {
                 USC: item.StretchID,
                 StretchName: item.ProjectName,
                 Length: item.length_in_km,
                 Phase: item.phases,
                 Corridor: item.corridors,
-                RO: uccData.RO.join(STRING_CONSTANT.COMMA) || null,
-                PIU: uccData.PIUs.join(STRING_CONSTANT.COMMA) || null,
+                RO: uccData.unique_ros.join(STRING_CONSTANT.COMMA) || null,
+                PIU: uccData.unique_pius.join(STRING_CONSTANT.COMMA) || null,
                 ActiveContracts: uccCount ? Number(uccCount.uniquecount) : 0
             };
         });
