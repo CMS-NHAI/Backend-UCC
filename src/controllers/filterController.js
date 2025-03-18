@@ -3,43 +3,43 @@ import { STATUS_CODES } from '../constants/statusCodeConstants.js';
 
 export const getFilterData = async (req, res) => {
     try {
-        const { piu, work_type, ro, program, phase, scheme, corridor, page = 1, limit = 10, sortBy = "name", order = "asc" } = req.query;
+        //const { piu, work_type, roList, program, phase, scheme, corridor, page = 1, limit = 10, sortBy = "name", order = "asc" } = req.query;
 
         
 
-        const roList = await prisma.UCCSegments.findMany({
+        const ro = await prisma.UCCSegments.findMany({
             distinct: ['RO'], 
             select: {
               RO: true, 
             },
           });
 
-          const piuList = await prisma.UCCSegments.findMany({
+          const piu = await prisma.UCCSegments.findMany({
             distinct: ['PIU'], 
             select: {
               PIU: true, 
             },
           });
 
-          const schemesList = await prisma.scheme_master.findMany({
+          const schemes = await prisma.scheme_master.findMany({
             select: {
               scheme_name: true,
             }
           });
 
-          const phaseList = await prisma.project_phase_master.findMany({
+          const phase = await prisma.project_phase_master.findMany({
             select: {
                 project_phase_name: true,
               },
         });
 
-        const programList = await prisma.program_master.findMany({
+        const program = await prisma.program_master.findMany({
             select: {
                 program_name: true,
               },
         });
 
-        const typeOfWorkList = await prisma.type_of_work.findMany({
+        const work_type = await prisma.type_of_work.findMany({
             select: {
               name_of_work: true
             }
@@ -51,7 +51,7 @@ export const getFilterData = async (req, res) => {
         //         CorridorName: true, 
         //     },
         //   });
-        const corridorsList = await prisma.$queryRaw`
+        const corridors = await prisma.$queryRaw`
   SELECT DISTINCT "CorridorName" FROM "nhai_gis"."Corridors"
 `;
 
@@ -64,13 +64,13 @@ export const getFilterData = async (req, res) => {
 
           
           const filterData = {
-            piuList,
-            typeOfWorkList,
-            roList,
-            programList,
-            phaseList,
-            schemesList,
-            corridorsList
+            piu,
+            work_type,
+            ro,
+            program,
+            phase,
+            schemes,
+            corridors
           }
           return res.status(STATUS_CODES.OK).json({
             success: true,
