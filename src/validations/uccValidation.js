@@ -186,7 +186,7 @@ export const contractValidationSchema = Joi.object({
   limit: Joi.number().integer().positive().optional(), // Optional positive integer
   page: Joi.number().integer().positive().optional(), // Optional positive integer
   exports: Joi.boolean().optional(), // Optional string with value 'true'
-  search: Joi.string().optional(), // Optional string
+  search: Joi.string().allow("").optional(), // Optional string
 });
 
 export const deleteFileValidationSchema = Joi.object({
