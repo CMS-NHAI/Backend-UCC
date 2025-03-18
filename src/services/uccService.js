@@ -843,35 +843,151 @@ export const getDataFromS3 = async(filePath, bucket_name) =>{
   }
 }
 
-export async function createFinalUCC(req, userId, uccId, stretchIds) {
+export async function createFinalUCC(req, uccId) {
   try {
+    logger.info("Fetching stretch ID from ucc master table based on uccID.")
+    const uccMaster = await prisma.ucc_master.findUnique({
+      where: { ucc_id: uccId },
+      select: { stretch_id: true }
+    });
 
-    const permanentUccNumber = createPermanentUcc(req, userId, uccId, stretchIds);
-    const response = await prisma.$transaction([
+    if (!uccMaster || !uccMaster.stretch_id || uccMaster.stretch_id.length === 0) {
+      throw new APIError(STATUS_CODES.NOT_FOUND, "No stretch_id found for given uccId");
+    }
+    const stretchIds = uccMaster.stretch_id;
+    logger.info("Stretch ID fetched successfully.")
+
+    logger.info("Fetching longest stretch data.")
+    const longestStretch = await prisma.$queryRaw`
+        SELECT "PhaseCode", "CorridorCode", "StretchCode", "StretchID"
+        FROM "nhai_gis"."Stretches"
+        WHERE "StretchID" = ANY(${stretchIds})
+        ORDER BY public.ST_Length(geom) DESC
+        LIMIT 1
+    `;
+
+    if (longestStretch.length === 0) {
+      throw new APIError(STATUS_CODES.NOT_FOUND, "No valid stretches found");
+    }
+    logger.info("Longest stretch data fetched successfully.")
+
+    const { PhaseCode, CorridorCode, StretchCode, StretchID } = longestStretch[0];
+
+    logger.info("Fetching ucc nh state details to get state code.")
+    const nhState = await prisma.ucc_nh_state_details.findFirst({
+      where: { ucc_id: uccId },
+      orderBy: { nh_state_distance: STRING_CONSTANT.DESC },
+      select: {
+        state_id: true,
+        ml_states: { select: { state_code: true } }
+      }
+    });
+
+    const stateCode = nhState?.ml_states?.state_code || STRING_CONSTANT.STRING_XX;
+    logger.info("State code fetched successfully.")
+
+    const balanceForAwardStatusID = await fetchStatusId(STRING_CONSTANT.BALANCE_FOR_AWARD);
+    const draftStatusID = await fetchStatusId(STRING_CONSTANT.DRAFT);
+    const userId = req.user?.user_id || null;
+    const currentTimestamp = new Date();
+    const packageCode = await generatePackageCode(StretchID);
+    const permanentUCC = `N/${PhaseCode}${CorridorCode}/${StretchCode}${packageCode}/${stateCode}`;
+
+    logger.info("Updating ucc_master, ucc_type_of_work_location, documents_master, ucc_nh_details.")
+    await prisma.$transaction([
+      prisma.package_master.create({
+        data: {
+          package_code: packageCode,
+          stretch_code: StretchID,
+          created_by: userId,
+          created_at: currentTimestamp,
+          update_by: userId,
+          updated_at: currentTimestamp
+        }
+      }),
+
       prisma.ucc_master.update({
-        where: { ucc_id: uccId, status: STRING_CONSTANT.DRAFT },
-        data: { status: STRING_CONSTANT.BALANCE_FOR_AWARD },
+        where: { ucc_id: uccId },
+        data: {
+          status: STRING_CONSTANT.BALANCE_FOR_AWARD,
+          phase_code_id: parseInt(PhaseCode),
+          corridor_code_id: parseInt(CorridorCode),
+          permanent_ucc: permanentUCC,
+          id: permanentUCC
+        },
       }),
+
       prisma.ucc_type_of_work_location.updateMany({
-        where: { ucc: uccId, status: STRING_CONSTANT.DRAFT },
-        data: { status: STRING_CONSTANT.BALANCE_FOR_AWARD },
+        where: { ucc: uccId, status: draftStatusID },
+        data: { status: balanceForAwardStatusID },
       }),
+
       prisma.documents_master.updateMany({
         where: { ucc_id: uccId, status: STRING_CONSTANT.DRAFT },
         data: { status: STRING_CONSTANT.BALANCE_FOR_AWARD },
       }),
+
+      prisma.ucc_nh_details.updateMany({
+        where: { ucc_id: uccId },
+        data: { status: STRING_CONSTANT.BALANCE_FOR_AWARD },
+      }),
     ]);
 
-
-    return {};
+    logger.info("Tables updated successfully.")
+    return { message: "Status updated successfully", permanentUCC };
   } catch (error) {
     logger.error({
-      message: RESPONSE_MESSAGES.ERROR.REQUEST_PROCESSING_ERROR,
+      message: error.message,
       error: error,
       url: req.url,
       method: req.method,
       time: new Date().toISOString(),
     });
-    throw err;
+    if (error.code === "P2025") {
+      throw new APIError(STATUS_CODES.NOT_FOUND, "No records found for the given uccId");
+    }
+
+    throw error;
+  }
+}
+
+export async function fetchStatusId(status) {
+  try {
+    const balanceForAwardStatus = await prisma.status_master.findFirst({
+      where: { status: status },
+      select: { id: true }
+    });
+
+    if (!balanceForAwardStatus) {
+      throw new APIError(STATUS_CODES.NOT_FOUND, `Status '${status}' not found in status_master`);
+    }
+
+    return balanceForAwardStatus.id;
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function generatePackageCode(stretchCode) {
+  try {
+    const existingPackages = await prisma.package_master.findMany({
+      where: { stretch_code: stretchCode },
+      select: { package_code: true },
+      orderBy: { package_code: STRING_CONSTANT.DESC }
+    });
+
+    let nextPackageCode = "001";
+
+    if (existingPackages.length > 0) {
+      const lastPackageCode = parseInt(existingPackages[0].package_code, 10);
+      if (lastPackageCode >= 999) {
+        throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.SUCCESS.EXHAUST_PACKAGE_CODE);
+      }
+      nextPackageCode = String(lastPackageCode + 1).padStart(3, "0");
+    }
+
+    return nextPackageCode;
+  } catch (error) {
+    throw error;
   }
 }
