@@ -51,7 +51,7 @@ export const getFilterData = async (req, res) => {
         //         CorridorName: true, 
         //     },
         //   });
-        const corridors = await prisma.$queryRaw`
+        const corridor = await prisma.$queryRaw`
   SELECT DISTINCT "CorridorName" FROM "nhai_gis"."Corridors"
 `;
 
@@ -70,7 +70,7 @@ export const getFilterData = async (req, res) => {
             program,
             phase,
             schemes,
-            corridors
+            corridor 
           }
           return res.status(STATUS_CODES.OK).json({
             success: true,

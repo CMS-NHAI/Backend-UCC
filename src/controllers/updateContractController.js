@@ -1,8 +1,9 @@
-import { updateContractDetailService, updateTypeOfWorkService } from '../services/contractService.js';
+import { updateContractDetailService, updateTypeOfWorkService,updateNHdetailsService,UCCApprovalStatusService } from '../services/contractService.js';
 import { RESPONSE_MESSAGES } from '../constants/responseMessages.js';
 import { STATUS_CODES } from '../constants/statusCodeConstants.js';
 import { errorResponse } from '../helpers/errorHelper.js';
 import logger from '../utils/logger.js';
+import APIError from '../utils/apiError.js';
 
 /**
  * Controller to update the contract details.
@@ -41,6 +42,42 @@ export const updateTypeOfWork = async (req, res) => {
       data
     });
   } catch (error) {
+    return await errorResponse(req, res, error);
+  }
+}
+
+export const updateNHdetails = async (req,res) =>{
+  try{
+    const userId = req.user?.user_id;
+    const payload = req.body;
+    const data = await updateNHdetailsService( userId, payload); 
+
+    res.status(STATUS_CODES.OK).json({
+      status: true,
+      message: RESPONSE_MESSAGES.SUCCESS.NH_DETAILS_UPDATED,
+      data
+    });
+  }catch(error){
+    console.log(error,"error occured")
+    return await errorResponse(req, res, error);
+  }
+}
+
+export const updateUCCApprovalStatus = async(req,res)=>{
+  try{
+  const {uccId,approvalStatus} = req.body
+  const userId = req.user?.user_id
+
+  if(req.user?.designation !== "IT Head"){
+  throw new APIError(STATUS_CODES.UNAUTHORIZED,RESPONSE_MESSAGES.ERROR.UNAUTHORIZED)
+  }
+  await UCCApprovalStatusService(uccId,userId,approvalStatus)
+  res.status(STATUS_CODES.OK).json({
+    status: true,
+    message: `changes ${approvalStatus} Successfully`
+  });
+  }catch(error){
+    console.log(error,"error occured")
     return await errorResponse(req, res, error);
   }
 }
