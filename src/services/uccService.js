@@ -474,11 +474,11 @@ export async function insertTypeOfWork(req, userId, reqBody) {
       uccId,
       generatedName: resultName,
       contractLength: `${formattedContractLength} Km`,
-      piu: stretchStatePiuRoData.piuOffices.map(piu => ({
+      piu: (stretchStatePiuRoData.piuOffices || []).map(piu => ({
         id: piu.office_id,
         name: piu.office_name.replace(/^PIU\s+/i, '')
       })),
-      ro: stretchStatePiuRoData.roOffices.map(ro => ({
+      ro: (stretchStatePiuRoData.roOffices || []).map(ro => ({
         id: ro.office_id,
         name: ro.office_name.replace(/^RO\s+/i, '')
       })),
