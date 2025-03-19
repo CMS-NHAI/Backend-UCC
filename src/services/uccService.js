@@ -258,6 +258,110 @@ export async function getFileFromS3(req, userId) {
   }
 }
 
+async function getStretchPiuRoAndStateBasedOnUserId(req) {
+  try {
+    const userId = req.user?.user_id;
+    const uccIds = await fetchUccIdsForUser(userId, req);
+    const piuRecords = await prisma.ucc_piu.findMany({
+      where: {
+        ucc_id: { in: uccIds },
+      },
+      select: {
+        piu_id: true,
+      },
+    });
+
+    const piuIds = [...new Set(piuRecords.map(record => record.piu_id))];
+    
+    if (piuIds.length === 0) {
+      console.log("No PIUs found for the given UCC IDs.");
+      return [];
+    }
+
+    const piuOffices = await prisma.or_office_master.findMany({
+      where: {
+        office_id: { in: piuIds },
+        office_type: 'PIU',
+      },
+      select: {
+        office_id: true,
+        office_name: true,
+        office_type: true,
+        parent_id: true,
+      },
+    });
+
+    const roIds = [...new Set(piuOffices.map(office => office.parent_id).filter(id => id !== null))];
+    
+    let roOffices = [];
+    if (roIds.length > 0) {
+      roOffices = await prisma.or_office_master.findMany({
+        where: {
+          office_id: { in: roIds },
+          office_type: 'RO',
+        },
+        select: {
+          office_id: true,
+          office_name: true,
+          office_type: true,
+        },
+      });
+    }
+
+    return { piuOffices, roOffices };
+  } catch (error) {
+    throw error;
+  }
+}
+
+/**
+ * Fetches all ucc_ids associated with the given user_id.
+ * @param {number} userId - The ID of the user.
+ * @returns {Promise<string[]>} - A list of ucc_id strings.
+ */
+async function fetchUccIdsForUser(userId, req) {
+  logger.info({
+    message: 'Fetching UCC IDs for the given user.',
+    method: req.method,
+    url: req.url,
+    status: STRING_CONSTANT.SUCCESS,
+    time: new Date().toISOString(),
+  });
+  const attendance = await prisma.ucc_user_mappings.findMany({
+    where: {
+      user_id: parseInt(userId),
+    },
+    select: {
+      ucc_id: true,
+    },
+  });
+
+  if (attendance.length === 0) {
+    logger.info({
+      message: "No Ucc found for the given user's user id.",
+      method: req.method,
+      url: req.url,
+      status: STRING_CONSTANT.SUCCESS,
+      time: new Date().toISOString(),
+    });
+    throw new APIError(STATUS_CODES.NOT_FOUND, RESPONSE_MESSAGES.SUCCESS.NO_UCC_FOUND);
+  }
+
+  const permanentUccIds = attendance.map(att => att.ucc_id);
+  const uccRecords = await prisma.ucc_master.findMany({
+    where: {
+      permanent_ucc: { in: permanentUccIds },
+    },
+    select: {
+      ucc_id: true,
+    },
+  });
+
+  const uccIds = [...new Set(uccRecords.map(record => record.ucc_id))];
+
+  return uccIds;
+}
+
 export async function insertTypeOfWork(req, userId, reqBody) {
   try {
     const dataToInsert = [];
@@ -274,11 +378,12 @@ export async function insertTypeOfWork(req, userId, reqBody) {
       throw new APIError(STATUS_CODES.BAD_REQUEST, 'Invalid or missing typeOfWorks array.');
     }
 
-    const stretchStatePiuRoData = await getStretchPiuRoAndState(stretchUsc);
-
+    const stretchStatePiuRoData = await getStretchPiuRoAndStateBasedOnUserId(req);
+    const uccSegmentsData = await getStretchPiuRoAndState(stretchUsc);
+    
     const stretchRecords = await prisma.Stretches.findMany({
       where: {
-        StretchID: { in: stretchStatePiuRoData.stretchId }
+        StretchID: { in: uccSegmentsData.stretchId }
       },
       select: {
         ProjectName: true,
@@ -369,9 +474,15 @@ export async function insertTypeOfWork(req, userId, reqBody) {
       uccId,
       generatedName: resultName,
       contractLength: `${formattedContractLength} Km`,
-      piu: stretchStatePiuRoData.piu.join(),
-      ro: stretchStatePiuRoData.ro.join(),
-      state: stretchStatePiuRoData.state.join()
+      piu: stretchStatePiuRoData.piuOffices.map(piu => ({
+        id: piu.office_id,
+        name: piu.office_name.replace(/^PIU\s+/i, '')
+      })),
+      ro: stretchStatePiuRoData.roOffices.map(ro => ({
+        id: ro.office_id,
+        name: ro.office_name.replace(/^RO\s+/i, '')
+      })),
+      state: uccSegmentsData.state.join()
     };
   } catch (err) {
     logger.error(`Error in insertTypeOfWork: ${err.message}`);
