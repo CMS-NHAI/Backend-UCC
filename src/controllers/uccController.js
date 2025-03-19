@@ -373,8 +373,9 @@ export const getImplementationModes = async (req,res, next) => {
     try {
         const modes = await getAllImplementationModes();
         res.status(STATUS_CODES.OK).json({
-          status: true,
-          message: "",
+          success:RESPONSE_MESSAGES.SUCCESS.status,
+          status: STATUS_CODES.OK,
+          message: "Record retrieved successfully.",
           data: modes,
         }); 
     } catch (error) {
@@ -434,17 +435,16 @@ export const getBasicDetailsOfReviewPage = async (req,res, next) => {
 
 export const submitFinalUccCreation = async (req, res) => {
   try {
-    const userId = req.user?.user_id;
-    const { uccId, stretchIds } = req.body;
+    const { uccId } = req.body;
 
-    const data = await createFinalUCC(req, userId, uccId, stretchIds);
+    const data = await createFinalUCC(req, uccId);
 
     res.status(STATUS_CODES.OK).json({
       status: true,
       data
     }); 
   } catch (error) {
-    
+    return await errorResponse(req, res, error);
   }
 }
 

@@ -107,7 +107,7 @@ export const uploadFileService = async (req, res) => {
       is_deleted: false,
       created_by: user_id.toString(),
       status: STRING_CONSTANT.DRAFT,
-      ucc_id: uccId.toString()
+      ucc_id: parseInt(uccId)
     },
   });
 
@@ -258,6 +258,110 @@ export async function getFileFromS3(req, userId) {
   }
 }
 
+async function getStretchPiuRoAndStateBasedOnUserId(req) {
+  try {
+    const userId = req.user?.user_id;
+    const uccIds = await fetchUccIdsForUser(userId, req);
+    const piuRecords = await prisma.ucc_piu.findMany({
+      where: {
+        ucc_id: { in: uccIds },
+      },
+      select: {
+        piu_id: true,
+      },
+    });
+
+    const piuIds = [...new Set(piuRecords.map(record => record.piu_id))];
+    
+    if (piuIds.length === 0) {
+      console.log("No PIUs found for the given UCC IDs.");
+      return [];
+    }
+
+    const piuOffices = await prisma.or_office_master.findMany({
+      where: {
+        office_id: { in: piuIds },
+        office_type: 'PIU',
+      },
+      select: {
+        office_id: true,
+        office_name: true,
+        office_type: true,
+        parent_id: true,
+      },
+    });
+
+    const roIds = [...new Set(piuOffices.map(office => office.parent_id).filter(id => id !== null))];
+    
+    let roOffices = [];
+    if (roIds.length > 0) {
+      roOffices = await prisma.or_office_master.findMany({
+        where: {
+          office_id: { in: roIds },
+          office_type: 'RO',
+        },
+        select: {
+          office_id: true,
+          office_name: true,
+          office_type: true,
+        },
+      });
+    }
+
+    return { piuOffices, roOffices };
+  } catch (error) {
+    throw error;
+  }
+}
+
+/**
+ * Fetches all ucc_ids associated with the given user_id.
+ * @param {number} userId - The ID of the user.
+ * @returns {Promise<string[]>} - A list of ucc_id strings.
+ */
+async function fetchUccIdsForUser(userId, req) {
+  logger.info({
+    message: 'Fetching UCC IDs for the given user.',
+    method: req.method,
+    url: req.url,
+    status: STRING_CONSTANT.SUCCESS,
+    time: new Date().toISOString(),
+  });
+  const attendance = await prisma.ucc_user_mappings.findMany({
+    where: {
+      user_id: parseInt(userId),
+    },
+    select: {
+      ucc_id: true,
+    },
+  });
+
+  if (attendance.length === 0) {
+    logger.info({
+      message: "No Ucc found for the given user's user id.",
+      method: req.method,
+      url: req.url,
+      status: STRING_CONSTANT.SUCCESS,
+      time: new Date().toISOString(),
+    });
+    throw new APIError(STATUS_CODES.NOT_FOUND, RESPONSE_MESSAGES.SUCCESS.NO_UCC_FOUND);
+  }
+
+  const permanentUccIds = attendance.map(att => att.ucc_id);
+  const uccRecords = await prisma.ucc_master.findMany({
+    where: {
+      permanent_ucc: { in: permanentUccIds },
+    },
+    select: {
+      ucc_id: true,
+    },
+  });
+
+  const uccIds = [...new Set(uccRecords.map(record => record.ucc_id))];
+
+  return uccIds;
+}
+
 export async function insertTypeOfWork(req, userId, reqBody) {
   try {
     const dataToInsert = [];
@@ -274,11 +378,12 @@ export async function insertTypeOfWork(req, userId, reqBody) {
       throw new APIError(STATUS_CODES.BAD_REQUEST, 'Invalid or missing typeOfWorks array.');
     }
 
-    const stretchStatePiuRoData = await getStretchPiuRoAndState(stretchUsc);
-
+    const stretchStatePiuRoData = await getStretchPiuRoAndStateBasedOnUserId(req);
+    const uccSegmentsData = await getStretchPiuRoAndState(stretchUsc);
+    
     const stretchRecords = await prisma.Stretches.findMany({
       where: {
-        StretchID: { in: stretchStatePiuRoData.stretchId }
+        StretchID: { in: uccSegmentsData.stretchId }
       },
       select: {
         ProjectName: true,
@@ -286,6 +391,17 @@ export async function insertTypeOfWork(req, userId, reqBody) {
     });
 
     const projectNames = stretchRecords.map(record => record.ProjectName);
+    let uccId = draftUccId;
+    if (!draftUccId) {
+      const dbUccId = await prisma.ucc_master.create({
+        data: {
+          stretch_id: stretchUsc,
+          status: STRING_CONSTANT.DRAFT,
+        },
+        select: { ucc_id: true },
+      });
+      uccId = dbUccId.ucc_id;
+    }
 
     for (const work of typeOfWorks) {
       const { workType, segment, blackSpot } = work;
@@ -323,7 +439,7 @@ export async function insertTypeOfWork(req, userId, reqBody) {
           const segmentLength = calculateSegmentLength(item.startChainage, item.endChainage);
           totalContractLength += segmentLength;
 
-          const segmentData = await getSegmentInsertData(item, typeOfWorkId, userId, TYPE_OF_ISSUES.SEGMENT, draftUccId);
+          const segmentData = await getSegmentInsertData(item, typeOfWorkId, userId, TYPE_OF_ISSUES.SEGMENT, uccId);
           return segmentData;
         });
         const resolvedSegmentData = await Promise.all(segmentNamePromises);
@@ -339,7 +455,7 @@ export async function insertTypeOfWork(req, userId, reqBody) {
             resultName += " and ";
           }
 
-          const blackSpotData = await getBlackSpotInsertData(item, typeOfWorkId, userId, TYPE_OF_ISSUES.BLACK_SPOT, draftUccId);
+          const blackSpotData = await getBlackSpotInsertData(item, typeOfWorkId, userId, TYPE_OF_ISSUES.BLACK_SPOT, uccId);
           return blackSpotData;
         });
         const resolvedBlackSpotData = await Promise.all(blackSpotNamePromises);
@@ -350,20 +466,7 @@ export async function insertTypeOfWork(req, userId, reqBody) {
     await prisma.ucc_type_of_work_location.createMany({
       data: dataToInsert,
     });
-
     logger.info("Type of work created successfully.");
-
-    let uccId = draftUccId;
-    if (!draftUccId) {
-      const dbUccId = await prisma.ucc_master.create({
-        data: {
-          stretch_id: stretchUsc,
-          status: STRING_CONSTANT.DRAFT,
-        },
-        select: { ucc_id: true },
-      });
-      uccId = dbUccId.ucc_id;
-    }
 
     const formattedContractLength = (totalContractLength).toFixed(2);
 
@@ -371,9 +474,15 @@ export async function insertTypeOfWork(req, userId, reqBody) {
       uccId,
       generatedName: resultName,
       contractLength: `${formattedContractLength} Km`,
-      piu: stretchStatePiuRoData.piu.join(),
-      ro: stretchStatePiuRoData.ro.join(),
-      state: stretchStatePiuRoData.state.join()
+      piu: (stretchStatePiuRoData.piuOffices || []).map(piu => ({
+        id: piu.office_id,
+        name: piu.office_name.replace(/^PIU\s+/i, '')
+      })),
+      ro: (stretchStatePiuRoData.roOffices || []).map(ro => ({
+        id: ro.office_id,
+        name: ro.office_name.replace(/^RO\s+/i, '')
+      })),
+      state: uccSegmentsData.state.join()
     };
   } catch (err) {
     logger.error(`Error in insertTypeOfWork: ${err.message}`);
@@ -843,35 +952,151 @@ export const getDataFromS3 = async(filePath, bucket_name) =>{
   }
 }
 
-export async function createFinalUCC(req, userId, uccId, stretchIds) {
+export async function createFinalUCC(req, uccId) {
   try {
+    logger.info("Fetching stretch ID from ucc master table based on uccID.")
+    const uccMaster = await prisma.ucc_master.findUnique({
+      where: { ucc_id: uccId },
+      select: { stretch_id: true }
+    });
 
-    const permanentUccNumber = createPermanentUcc(req, userId, uccId, stretchIds);
-    const response = await prisma.$transaction([
+    if (!uccMaster || !uccMaster.stretch_id || uccMaster.stretch_id.length === 0) {
+      throw new APIError(STATUS_CODES.NOT_FOUND, "No stretch_id found for given uccId");
+    }
+    const stretchIds = uccMaster.stretch_id;
+    logger.info("Stretch ID fetched successfully.")
+
+    logger.info("Fetching longest stretch data.")
+    const longestStretch = await prisma.$queryRaw`
+        SELECT "PhaseCode", "CorridorCode", "StretchCode", "StretchID"
+        FROM "nhai_gis"."Stretches"
+        WHERE "StretchID" = ANY(${stretchIds})
+        ORDER BY public.ST_Length(geom) DESC
+        LIMIT 1
+    `;
+
+    if (longestStretch.length === 0) {
+      throw new APIError(STATUS_CODES.NOT_FOUND, "No valid stretches found");
+    }
+    logger.info("Longest stretch data fetched successfully.")
+
+    const { PhaseCode, CorridorCode, StretchCode, StretchID } = longestStretch[0];
+
+    logger.info("Fetching ucc nh state details to get state code.")
+    const nhState = await prisma.ucc_nh_state_details.findFirst({
+      where: { ucc_id: uccId },
+      orderBy: { nh_state_distance: STRING_CONSTANT.DESC },
+      select: {
+        state_id: true,
+        ml_states: { select: { state_code: true } }
+      }
+    });
+
+    const stateCode = nhState?.ml_states?.state_code || STRING_CONSTANT.STRING_XX;
+    logger.info("State code fetched successfully.")
+
+    const balanceForAwardStatusID = await fetchStatusId(STRING_CONSTANT.BALANCE_FOR_AWARD);
+    const draftStatusID = await fetchStatusId(STRING_CONSTANT.DRAFT);
+    const userId = req.user?.user_id || null;
+    const currentTimestamp = new Date();
+    const packageCode = await generatePackageCode(StretchID);
+    const permanentUCC = `N/${PhaseCode}${CorridorCode}/${StretchCode}${packageCode}/${stateCode}`;
+
+    logger.info("Updating ucc_master, ucc_type_of_work_location, documents_master, ucc_nh_details.")
+    await prisma.$transaction([
+      prisma.package_master.create({
+        data: {
+          package_code: packageCode,
+          stretch_code: StretchID,
+          created_by: userId,
+          created_at: currentTimestamp,
+          update_by: userId,
+          updated_at: currentTimestamp
+        }
+      }),
+
       prisma.ucc_master.update({
-        where: { ucc_id: uccId, status: STRING_CONSTANT.DRAFT },
-        data: { status: STRING_CONSTANT.BALANCE_FOR_AWARD },
+        where: { ucc_id: uccId },
+        data: {
+          status: STRING_CONSTANT.BALANCE_FOR_AWARD,
+          phase_code_id: parseInt(PhaseCode),
+          corridor_code_id: parseInt(CorridorCode),
+          permanent_ucc: permanentUCC,
+          id: permanentUCC
+        },
       }),
+
       prisma.ucc_type_of_work_location.updateMany({
-        where: { ucc: uccId, status: STRING_CONSTANT.DRAFT },
-        data: { status: STRING_CONSTANT.BALANCE_FOR_AWARD },
+        where: { ucc: uccId, status: draftStatusID },
+        data: { status: balanceForAwardStatusID },
       }),
+
       prisma.documents_master.updateMany({
         where: { ucc_id: uccId, status: STRING_CONSTANT.DRAFT },
         data: { status: STRING_CONSTANT.BALANCE_FOR_AWARD },
       }),
+
+      prisma.ucc_nh_details.updateMany({
+        where: { ucc_id: uccId },
+        data: { status: STRING_CONSTANT.BALANCE_FOR_AWARD },
+      }),
     ]);
 
-
-    return {};
+    logger.info("Tables updated successfully.")
+    return { message: "Status updated successfully", permanentUCC };
   } catch (error) {
     logger.error({
-      message: RESPONSE_MESSAGES.ERROR.REQUEST_PROCESSING_ERROR,
+      message: error.message,
       error: error,
       url: req.url,
       method: req.method,
       time: new Date().toISOString(),
     });
-    throw err;
+    if (error.code === "P2025") {
+      throw new APIError(STATUS_CODES.NOT_FOUND, "No records found for the given uccId");
+    }
+
+    throw error;
+  }
+}
+
+export async function fetchStatusId(status) {
+  try {
+    const balanceForAwardStatus = await prisma.status_master.findFirst({
+      where: { status: status },
+      select: { id: true }
+    });
+
+    if (!balanceForAwardStatus) {
+      throw new APIError(STATUS_CODES.NOT_FOUND, `Status '${status}' not found in status_master`);
+    }
+
+    return balanceForAwardStatus.id;
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function generatePackageCode(stretchCode) {
+  try {
+    const existingPackages = await prisma.package_master.findMany({
+      where: { stretch_code: stretchCode },
+      select: { package_code: true },
+      orderBy: { package_code: STRING_CONSTANT.DESC }
+    });
+
+    let nextPackageCode = "001";
+
+    if (existingPackages.length > 0) {
+      const lastPackageCode = parseInt(existingPackages[0].package_code, 10);
+      if (lastPackageCode >= 999) {
+        throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.SUCCESS.EXHAUST_PACKAGE_CODE);
+      }
+      nextPackageCode = String(lastPackageCode + 1).padStart(3, "0");
+    }
+
+    return nextPackageCode;
+  } catch (error) {
+    throw error;
   }
 }
