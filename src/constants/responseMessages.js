@@ -38,6 +38,7 @@ export const RESPONSE_MESSAGES = {
         UCC_LOG_LIST : "Ucc log records retrieved successfully",
         EXHAUST_PACKAGE_CODE: "You have exhausted the package Code. Please create a new Stretch or Project.",
         NH_DETAILS_UPDATED:"NH Details Updated Successfully.",
-        APPROVAL_STATUS_UPDATED:""
+        APPROVAL_STATUS_UPDATED:"",
+        NO_UCC_FOUND: "No UCCs found in the database for the given user."
     },
   }
