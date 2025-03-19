@@ -6,7 +6,6 @@ import APIError from '../utils/apiError.js';
 import { prisma } from '../config/prismaClient.js';
 import logger from "../utils/logger.js";
 import { getFileFromS3, insertTypeOfWork,uploadFileService, deleteFileService, getAllImplementationModes, uploadMultipleFileService,getcontractListService,basicDetailsOnReviewPage, createFinalUCC, getDataFromS3 } from '../services/uccService.js';
-import { STATUS } from '../constants/appConstants.js';
 // import uccService from '../services/uccService.js';
 // import { S3Client, GetObjectCommand } from  "@aws-sdk/client-s3";
 
@@ -374,8 +373,9 @@ export const getImplementationModes = async (req,res, next) => {
     try {
         const modes = await getAllImplementationModes();
         res.status(STATUS_CODES.OK).json({
-          status: true,
-          message: "",
+          success:RESPONSE_MESSAGES.SUCCESS.status,
+          status: STATUS_CODES.OK,
+          message: "Record retrieved successfully.",
           data: modes,
         }); 
     } catch (error) {
@@ -391,14 +391,13 @@ export const getuserUccDetails = async (req, res) => {
    if(!data){
     return;
    }
-
     return res.status(STATUS_CODES.OK).json({
       success: true,
       status: STATUS_CODES.OK,
       message: RESPONSE_MESSAGES.SUCCESS.CONTRACT_DETAILS_FETCHED,
       data:data.finalContractList,
       pagination: {
-        totalCount: data.totalCount,
+        totalCount: data.totalCount[0].count,
         page: data.page,
         pageSize: data.limit,
         totalPages: data.totalPages,
@@ -406,6 +405,7 @@ export const getuserUccDetails = async (req, res) => {
     });
 
   } catch (error) {
+    console.log(error,"error")
     return errorResponse(req, res, error);
   }
 }

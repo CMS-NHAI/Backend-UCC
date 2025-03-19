@@ -61,7 +61,7 @@ export const uploadFileService = async (req, res) => {
       RESPONSE_MESSAGES.ERROR.FILE_NOT_FOUND
     );
   }
-
+  
   const params = {
     Bucket: process.env.AWS_BUCKET_NAME,
     Key: `${process.env.S3_MAIN_FOLDER}/${process.env.S3_SUB_FOLDER}/${Date.now()}-${req.file.originalname}`,
@@ -101,7 +101,8 @@ export const uploadFileService = async (req, res) => {
     data: {
       document_type: req.body.document_type,
       document_name: req.file.originalname,
-      document_path: params.Key,
+      key_name: params.Key,
+      document_path: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${params.Key}`,
       created_at: new Date(),
       is_deleted: false,
       created_by: user_id.toString(),
@@ -494,7 +495,7 @@ export async function getMultipleFileFromS3(req, userId) {
     const fileRecords = await prisma.documents_master.findMany({
       where: {
         created_by: userId.toString(),
-        ucc_id: req.params.ucc_id,
+        ucc_id: req.query.ucc_id,
         is_deleted: false,
       },
       select: {
@@ -505,6 +506,7 @@ export async function getMultipleFileFromS3(req, userId) {
         created_at: true,
         created_by: true,
         is_deleted: true,
+        ucc_id:true,
         status: true
 
       },
@@ -595,98 +597,74 @@ export const getcontractListService = async (req, res) => {
   if (!userId) {
     throw new APIError(STATUS_CODES.BAD_REQUEST, RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND);
   }
-  let where = {};
-  if (stretchIds.length > 0) {
-    where.StretchID = {
-      in: stretchIds,
-    }
+
+  let whereClauses = [];
+
+  if (stretchIds?.length > 0) {
+    whereClauses.push(`"StretchID" IN (${stretchIds.map(id => `'${id}'`).join(',')})`);
   } else {
     let getUserUccs = await prisma.ucc_user_mappings.findMany({
-      where: {
-        user_id: userId,
-      },
-      select: {
-        ucc_id: true,
-      },
+      where: { user_id: userId },
+      select: { ucc_id: true },
     });
-    getUserUccs = getUserUccs.map((item) => {
-      return item.ucc_id;
-    });
-    stretchIds = getUserUccs;
-    where.UCC = {
-      in: stretchIds,
+    
+    getUserUccs = getUserUccs.map((item) => `'${item.ucc_id}'`);
+    if (getUserUccs.length > 0) {
+      whereClauses.push(`"UCC" IN (${getUserUccs.join(',')})`);
     }
   }
 
   if (search?.length > 0) {
-    where.OR = [
-      { ProjectName: { contains: search, mode: 'insensitive' } },
-      { PIU: { contains: search, mode: 'insensitive' } },
-      { UCC: { contains: search, mode: 'insensitive' } },
-      { TypeofWork: { contains: search, mode: 'insensitive' } },
-    ];
+    whereClauses.push(`(
+      "ProjectName" ILIKE '%${search}%'
+      OR "PIU" ILIKE '%${search}%'
+      OR "UCC" ILIKE '%${search}%'
+      OR "TypeofWork" ILIKE '%${search}%'
+    )`);
   }
 
-  let orConditions = [];
+  if (piu?.length) whereClauses.push(`"PIU" IS NOT NULL AND "PIU" IN (${piu.map(p => `'${p}'`).join(",")})`);
+  if (ro?.length) whereClauses.push(`"RO" IS NOT NULL AND "RO" IN (${ro.map(r => `'${r}'`).join(",")})`);
+  if (program?.length) whereClauses.push(`"ProgramName" IS NOT NULL AND "ProgramName" IN (${program.map(p => `'${p}'`).join(",")})`);
+  if (phase?.length) whereClauses.push(`"PhaseCode" IS NOT NULL AND "PhaseCode" IN (${phase.map(p => `'${p}'`).join(",")})`);
+  if (typeOfWork?.length) whereClauses.push(`"TypeofWork" IS NOT NULL AND "TypeofWork" IN (${typeOfWork.map(t => `'${t}'`).join(",")})`);
+  if (scheme?.length) whereClauses.push(`"Scheme" IS NOT NULL AND "Scheme" IN (${scheme.map(s => `'${s}'`).join(",")})`);
+  if (corridor?.length) whereClauses.push(`"CorridorCode" IS NOT NULL AND "CorridorCode" IN (${corridor.map(c => `'${c}'`).join(",")})`);
 
-  if (piu?.length) orConditions.push({ PIU: { in: piu } });
-  if (ro?.length) orConditions.push({ RO: { in: ro } });
-  if (program?.length) orConditions.push({ ProgramName: { in: program } });
-  if (phase?.length) orConditions.push({ PhaseCode: { in: phase } });
-  if (typeOfWork?.length) orConditions.push({ TypeofWork: { in: typeOfWork } });
-  if (scheme?.length) orConditions.push({ Scheme: { in: scheme } });
-  if (corridor?.length) orConditions.push({ CorridorCode: { in: corridor } });
+  const whereCondition = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' OR ')}` : '';
 
-  if (orConditions.length > 0) {
-    where = { OR: orConditions }
-  }
   const [result, totalCount] = await Promise.all([
-    prisma.UCCSegments.findMany({
-      where,
-      distinct: ['UCC'],
-      select: {
-        TypeofWork: true,
-        StretchID: true,
-        ProjectName: true,
-        PIU: true,
-        UCC: true,
-        TotalLength: true,
-        RevisedLength: true,
-        CorridorCode: true,
-        RO: true,
-        Scheme: true,
-        PhaseCode: true,
-        ProgramName: true,
-      },
-      skip,
-      take: limit,
-    }),
-    prisma.UCCSegments.count({ where })
+    prisma.$queryRawUnsafe(`
+      SELECT DISTINCT ON ("UCC") "UCC", "TypeofWork", "StretchID", "ProjectName", "PIU", 
+        "TotalLength", "RevisedLength", "CorridorCode", "RO", "Scheme", 
+        "PhaseCode", "ProgramName", public.ST_AsGeoJSON(geom) AS geojson
+      FROM "nhai_gis"."UCCSegments"
+      ${whereCondition}
+      ORDER BY "UCC"
+      LIMIT ${limit} OFFSET ${skip}
+    `),
+    prisma.$queryRawUnsafe(`
+      SELECT COUNT(*)::int AS count FROM "nhai_gis"."UCCSegments" ${whereCondition}
+    `),
   ]);
 
-
-  const ids = await result.map((item) => { return item.StretchID; });
-  const strectchDetails = await prisma.Stretches.findMany({
-    where: {
-      StretchID: {
-        in: ids,
-      },
-    },
-    select: {
-      StretchID: true,
-      ProjectName: true,
-    },
+const newIds = result.map(item => item.UCC);
+  const ids = result.map(item => item.StretchID);
+  const stretchDetails = await prisma.Stretches.findMany({
+    where: { StretchID: { in: ids } },
+    select: { StretchID: true, ProjectName: true },
   });
-  const stretchMap = strectchDetails.reduce((acc, item) => {
+
+  const stretchMap = stretchDetails.reduce((acc, item) => {
     acc[item.StretchID] = item.ProjectName;
     return acc;
   }, {});
 
-  const finalContractList = await result.map((item) => {
-    item.status = STRING_CONSTANT.AWARDED;
-    item.stretchName = stretchMap[item.StretchID];
-    return item
-  });
+  const finalContractList = result.map((item) => ({
+    ...item,
+    status: STRING_CONSTANT.AWARDED,
+    stretchName: stretchMap[item.StretchID],
+  }));
 
   if (exports) {
     const headers = [
@@ -697,17 +675,18 @@ export const getcontractListService = async (req, res) => {
       { id: 'TotalLength', title: 'Length' },
       { id: 'status', title: 'Status' }
     ];
-
     return await exportToCSV(res, finalContractList, STRING_CONSTANT.CONTRACT_DETAILS, headers);
   }
+
   return {
     page,
     limit,
     totalCount,
-    totalPages: Math.ceil(totalCount / limit),
-    finalContractList
+    totalPages: Math.ceil(totalCount[0].count / limit),
+    finalContractList,
   };
-}
+};
+
 
 export const basicDetailsOnReviewPage = async (id, userId) => {
   try {
@@ -773,7 +752,11 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
         start_distance_metre: true,
         end_distance_km: true,
         end_distance_metre: true,
-        start_distance_km: true,
+        // start_distance_km: true,
+        startlatitude: true,
+        startlongitude: true,
+        endlatitude: true,
+        endlongitude: true,
       },
     });
 
@@ -791,7 +774,36 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
         document_type: true
       },
     });
-    // Prepare the final response
+        
+    const ucc_nh_details_data = await prisma.ucc_nh_state_details.findMany({
+      where: {
+        ucc_id: uccRecord.ucc_id,
+      },
+      include: {
+        ml_states: {   // This should match the relation name in Prisma schema
+          select: {
+            state_name: true,
+          },
+        },
+        districts_master: {
+        select: {
+          district_name: true
+        }
+      },
+      ucc_nh_details: true
+    //   ucc_nh_details: {
+    //   select: {
+    //     id: true,
+    //     nh_number: true,
+    //     start_chainage: true,
+    //     end_chainage: true,
+    //     length: true,
+    //     status: true
+    //   },
+    // },
+      },
+    });
+    
     const data = {
       contract_name: uccRecord.contract_name,
       short_name: uccRecord.short_name,
@@ -802,8 +814,8 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
       scheme_master: uccRecord.scheme_master.scheme_name,
       or_office_master: uccRecord.or_office_master.office_name,
       type_of_work: type_of_work ? type_of_work : null,
-      supporting_documents: fileRecord
-      // supporting_documents: supporting_documents
+      supporting_documents: fileRecord,
+      nation_highway_and_state: ucc_nh_details_data
     };
     return data;
   } catch (error) {
