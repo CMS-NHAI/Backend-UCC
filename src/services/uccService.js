@@ -863,14 +863,36 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
         start_distance_metre: true,
         end_distance_km: true,
         end_distance_metre: true,
-        // start_distance_km: true,
         startlatitude: true,
         startlongitude: true,
         endlatitude: true,
         endlongitude: true,
+        type_of_work_ucc_type_of_work_location_type_of_workTotype_of_work: {  // Correct relation field
+          select: {
+            name_of_work: true, // Selecting specific field from related table
+          },
+        },
       },
     });
-
+    
+    const groupedData = type_of_work.reduce((acc, item) => {
+      const nameOfWork = item.type_of_work_ucc_type_of_work_location_type_of_workTotype_of_work.name_of_work;
+  
+      if (!acc[nameOfWork]) {
+          acc[nameOfWork] = [];
+      }
+  
+      acc[nameOfWork].push(item);
+      return acc;
+  }, {});
+  
+  // Convert to array format (optional)
+  const type_of_work_result = Object.entries(groupedData).map(([name_of_work, items]) => ({
+      name_of_work,
+      data: items
+  }));
+  
+    
     const fileRecord = await prisma.supporting_documents.findMany({
       where: {
         created_by: uccRecord.created_by.toString(),
@@ -896,11 +918,11 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
             state_name: true,
           },
         },
-        districts_master: {
-        select: {
-          district_name: true
-        }
-      },
+      //   districts_master: {
+      //   select: {
+      //     district_name: true
+      //   }
+      // },
       ucc_nh_details: true
     //   ucc_nh_details: {
     //   select: {
@@ -914,6 +936,21 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
     // },
       },
     });
+    let ucc_nh_details_final_data = []
+    for (let id of ucc_nh_details_data) {
+      const districts = await prisma.districts_master.findMany({
+        where: {
+          district_id: { in: id.district_id } // No need to wrap it in another array
+        },
+        select: {
+          district_name: true
+        }
+      });
+      id.district_name = districts
+      // console.log(districts);
+      ucc_nh_details_final_data.push(id)
+    }
+    
     
     const data = {
       contract_name: uccRecord.contract_name,
@@ -924,9 +961,9 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
       state: uccRecord.ml_states.state_name,
       scheme_master: uccRecord.scheme_master.scheme_name,
       or_office_master: uccRecord.or_office_master.office_name,
-      type_of_work: type_of_work ? type_of_work : null,
+      type_of_work: type_of_work_result ? type_of_work_result : null,
       supporting_documents: fileRecord,
-      nation_highway_and_state: ucc_nh_details_data
+      nation_highway_and_state: ucc_nh_details_final_data
     };
     return data;
   } catch (error) {
