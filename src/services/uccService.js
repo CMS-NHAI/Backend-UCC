@@ -603,10 +603,11 @@ export const insertContractDetails = async (req) => {
 export async function getMultipleFileFromS3(req, userId) {
   try {
     // Fetch all documents for the user that are not deleted
+    const uccId = Number(req.query.ucc_id)
     const fileRecords = await prisma.documents_master.findMany({
       where: {
         created_by: userId.toString(),
-        ucc_id: req.query.ucc_id,
+        ucc_id: uccId,
         is_deleted: false,
       },
       select: {
