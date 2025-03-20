@@ -908,7 +908,7 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
       },
     });
         
-    const ucc_nh_details_data = await prisma.ucc_nh_state_details.findMany({
+    const ucc_nh_state_details_data = await prisma.ucc_nh_state_details.findMany({
       where: {
         ucc_id: uccRecord.ucc_id,
       },
@@ -918,26 +918,10 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
             state_name: true,
           },
         },
-      //   districts_master: {
-      //   select: {
-      //     district_name: true
-      //   }
-      // },
-      ucc_nh_details: true
-    //   ucc_nh_details: {
-    //   select: {
-    //     id: true,
-    //     nh_number: true,
-    //     start_chainage: true,
-    //     end_chainage: true,
-    //     length: true,
-    //     status: true
-    //   },
-    // },
       },
     });
     let ucc_nh_details_final_data = []
-    for (let id of ucc_nh_details_data) {
+    for (let id of ucc_nh_state_details_data) {
       const districts = await prisma.districts_master.findMany({
         where: {
           district_id: { in: id.district_id } // No need to wrap it in another array
@@ -947,10 +931,16 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
         }
       });
       id.district_name = districts
-      // console.log(districts);
+      id.state_name = id.ml_states.state_name
+      delete id.ml_states
       ucc_nh_details_final_data.push(id)
     }
     
+    const ucc_nh_details_data = await prisma.ucc_nh_details.findMany({
+      where: {
+        ucc_id: uccRecord.ucc_id,
+      },
+    });
     
     const data = {
       contract_name: uccRecord.contract_name,
@@ -963,7 +953,8 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
       or_office_master: uccRecord.or_office_master.office_name,
       type_of_work: type_of_work_result ? type_of_work_result : null,
       supporting_documents: fileRecord,
-      nation_highway_and_state: ucc_nh_details_final_data
+      state_and_district: ucc_nh_details_final_data,
+      nation_highway: ucc_nh_details_data
     };
     return data;
   } catch (error) {
