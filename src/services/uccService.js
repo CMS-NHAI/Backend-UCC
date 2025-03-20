@@ -165,10 +165,10 @@ export const uploadMultipleFileService = async (req, res) => {
     if (!uploadFileResult || uploadFileResult.$metadata.httpStatusCode !== STATUS_CODES.OK) {
       throw new APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, RESPONSE_MESSAGES.ERROR.FILE_UPLOAD_FAILED);
     }
-
+const uccId = Number(req.body.ucc_id)
     const savedFile = await prisma.documents_master.create({
       data: {
-        ucc_id: req.body.ucc_id,
+        ucc_id: uccId,
         document_type: process.env.DOCUMENT_TYPE,
         document_name: file.originalname,
         document_path: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${params.Key}`,
