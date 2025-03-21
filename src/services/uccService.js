@@ -703,6 +703,7 @@ export const deleteMultipleFileService = async (ids) => {
 export const getcontractListService = async (req, res) => {
   let { stretchIds, piu, ro, program, phase, typeOfWork, scheme, corridor, page = 1, limit = 10, exports, search } = req.body;
   const userId = req.user?.user_id;
+  const designation = req.user?.designation;
   page = parseInt(page);
   limit = parseInt(limit);
   const skip = (page - 1) * limit;
@@ -749,7 +750,7 @@ export const getcontractListService = async (req, res) => {
     prisma.$queryRawUnsafe(`
       SELECT DISTINCT ON ("UCC") "UCC", "TypeofWork", "StretchID", "ProjectName", "PIU", 
         "TotalLength", "RevisedLength", "CorridorCode", "RO", "Scheme", 
-        "PhaseCode", "ProgramName", public.ST_AsGeoJSON(geom) AS geojson
+        "PhaseCode", "ProgramName","ProjectStatus", public.ST_AsGeoJSON(geom) AS geojson
       FROM "nhai_gis"."UCCSegments"
       ${whereCondition}
       ORDER BY "UCC"
@@ -759,9 +760,18 @@ export const getcontractListService = async (req, res) => {
       SELECT COUNT(*)::int AS count FROM "nhai_gis"."UCCSegments" ${whereCondition}
     `),
   ]);
-
-const newIds = result.map(item => item.UCC);
-  const ids = result.map(item => item.StretchID);
+  let recordWithEditCount;
+  if(designation == STRING_CONSTANT.IT_HEAD){
+ recordWithEditCount =await Promise.all(result.map(async (item) => {
+  const editCount = await prisma.ucc_change_log.count({
+    where: {
+      ucc_id: item.UCC
+    }
+  });
+  return { ...item, editCount };
+  }))
+  }
+  const ids = recordWithEditCount.map(item => item.StretchID);
   const stretchDetails = await prisma.Stretches.findMany({
     where: { StretchID: { in: ids } },
     select: { StretchID: true, ProjectName: true },
@@ -772,9 +782,8 @@ const newIds = result.map(item => item.UCC);
     return acc;
   }, {});
 
-  const finalContractList = result.map((item) => ({
+  const finalContractList = recordWithEditCount.map((item) => ({
     ...item,
-    status: STRING_CONSTANT.AWARDED,
     stretchName: stretchMap[item.StretchID],
   }));
 

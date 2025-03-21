@@ -18,7 +18,8 @@ export const STRING_CONSTANT = Object.freeze({
     STRING_XX: "XX",
     DESC: "desc",
     REJECTED:"REJECTED",
-    APPROVED:"APPROVED"
+    APPROVED:"APPROVED",
+    IT_HEAD:"IT Head"
 });
 
 export const ALLOWED_TYPES_OF_WORK = Object.freeze([
