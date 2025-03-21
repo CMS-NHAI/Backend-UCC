@@ -482,7 +482,7 @@ export async function insertTypeOfWork(req, userId, reqBody) {
         id: ro.office_id,
         name: ro.office_name.replace(/^RO\s+/i, '')
       })),
-      state: uccSegmentsData.state.join()
+      state: uccSegmentsData.state
     };
   } catch (err) {
     logger.error(`Error in insertTypeOfWork: ${err.message}`);
