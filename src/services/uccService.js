@@ -760,18 +760,7 @@ export const getcontractListService = async (req, res) => {
       SELECT COUNT(*)::int AS count FROM "nhai_gis"."UCCSegments" ${whereCondition}
     `),
   ]);
-  let recordWithEditCount;
-  if(designation == STRING_CONSTANT.IT_HEAD){
- recordWithEditCount =await Promise.all(result.map(async (item) => {
-  const editCount = await prisma.ucc_change_log.count({
-    where: {
-      ucc_id: item.UCC
-    }
-  });
-  return { ...item, editCount };
-  }))
-  }
-  const ids = recordWithEditCount.map(item => item.StretchID);
+  const ids = result.map(item => item.StretchID);
   const stretchDetails = await prisma.Stretches.findMany({
     where: { StretchID: { in: ids } },
     select: { StretchID: true, ProjectName: true },
@@ -782,10 +771,27 @@ export const getcontractListService = async (req, res) => {
     return acc;
   }, {});
 
-  const finalContractList = recordWithEditCount.map((item) => ({
+  let finalContractList ;
+  if(designation == STRING_CONSTANT.IT_HEAD){
+   finalContractList = await Promise.all(result.map(async (item) => {
+    const [editCount] = await Promise.all([
+      prisma.ucc_change_log.count({
+        where: { ucc_id: item.UCC }
+      })
+    ]);
+  
+    return {
+      ...item,
+      stretchName: stretchMap[item.StretchID], // Add stretchName
+      editCount // Add editCount
+    };
+  }));
+}else{
+  finalContractList = result.map((item) => ({
     ...item,
     stretchName: stretchMap[item.StretchID],
   }));
+}
 
   if (exports) {
     const headers = [
