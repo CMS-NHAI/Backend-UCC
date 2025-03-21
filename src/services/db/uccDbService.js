@@ -78,12 +78,24 @@ export const updateNHdetailsData = async (nhDetailsArray, nhStateDetailsArray, u
 
 export const updateApprovalData =async(userId,uccId,status) =>{
   try{
-    const uccData = await prisma.ucc_master.findFirst({
+    const uccData = await prisma.ucc_master.findUnique({
       where:{
         ucc_id:uccId,
       }
     })
     if(!uccData){
+      throw new APIError(STATUS_CODES.NOT_FOUND,RESPONSE_MESSAGES.ERROR.CONTRACT_NOT_FOUND)
+    }
+    const uccSegmentData = await prisma.UCCSegments.count({
+      where:{
+        UCC:uccData.id,
+        ProjectStatus:{
+          contains: 'Awarded',  // Case-sensitive search
+          mode: 'insensitive'
+        }
+      }
+    })
+    if(uccSegmentData<=0){
       throw new APIError(STATUS_CODES.NOT_FOUND,RESPONSE_MESSAGES.ERROR.NO_UCC_FOUND)
     }
     await prisma.ucc_master.update({
@@ -93,7 +105,7 @@ export const updateApprovalData =async(userId,uccId,status) =>{
       data:{
         approvedby:userId,
         approvedate:new Date(),
-        statusafterapproval:STRING_CONSTANT[status.toUpperCase()] || STRING_CONSTANT.REJECTED
+        statusafterapproval:STRING_CONSTANT[status.toUpperCase()]
       }
     })
 
