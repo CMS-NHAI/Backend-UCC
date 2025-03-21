@@ -373,7 +373,7 @@ export async function insertTypeOfWork(req, userId, reqBody) {
       contractLength: `${formattedContractLength} Km`,
       piu: stretchStatePiuRoData.piu.join(),
       ro: stretchStatePiuRoData.ro.join(),
-      state: stretchStatePiuRoData.state.join()
+      state: stretchStatePiuRoData.state
     };
   } catch (err) {
     logger.error(`Error in insertTypeOfWork: ${err.message}`);
