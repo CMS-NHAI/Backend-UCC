@@ -381,18 +381,21 @@ export async function insertTypeOfWork(req, userId, reqBody) {
     const stretchStatePiuRoData = await getStretchPiuRoAndStateBasedOnUserId(req);
     const uccSegmentsData = await getStretchPiuRoAndState(stretchUsc);
 
-    const roName = stretchStatePiuRoData.roOffices[0].office_name;
+    const roOffices = (stretchStatePiuRoData.roOffices || []).map(ro => ({
+      id: ro.office_id,
+      name: ro.office_name.replace(/^RO\s+/i, '')
+    }));
 
     const stateData = await prisma.ml_states.findFirst({
       where: {
-        state_name: roName
+        state_name: roOffices[0].office_name
       },
       select: {
         state_id: true,
         state_name: true
       }
-    })
-    
+    });
+
     const stretchRecords = await prisma.Stretches.findMany({
       where: {
         StretchID: { in: uccSegmentsData.stretchId }
@@ -490,10 +493,7 @@ export async function insertTypeOfWork(req, userId, reqBody) {
         id: piu.office_id,
         name: piu.office_name.replace(/^PIU\s+/i, '')
       })),
-      ro: (stretchStatePiuRoData.roOffices || []).map(ro => ({
-        id: ro.office_id,
-        name: ro.office_name.replace(/^RO\s+/i, '')
-      })),
+      ro: roOffices,
       state: stateData
     };
   } catch (err) {
