@@ -380,6 +380,18 @@ export async function insertTypeOfWork(req, userId, reqBody) {
 
     const stretchStatePiuRoData = await getStretchPiuRoAndStateBasedOnUserId(req);
     const uccSegmentsData = await getStretchPiuRoAndState(stretchUsc);
+
+    const roName = stretchStatePiuRoData.roOffices[0].office_name;
+
+    const stateData = await prisma.ml_states.findFirst({
+      where: {
+        state_name: roName
+      },
+      select: {
+        state_id: true,
+        state_name: true
+      }
+    })
     
     const stretchRecords = await prisma.Stretches.findMany({
       where: {
@@ -482,7 +494,7 @@ export async function insertTypeOfWork(req, userId, reqBody) {
         id: ro.office_id,
         name: ro.office_name.replace(/^RO\s+/i, '')
       })),
-      state: uccSegmentsData.state
+      state: stateData
     };
   } catch (err) {
     logger.error(`Error in insertTypeOfWork: ${err.message}`);
