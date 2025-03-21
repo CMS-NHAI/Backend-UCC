@@ -482,7 +482,7 @@ export async function insertTypeOfWork(req, userId, reqBody) {
         id: ro.office_id,
         name: ro.office_name.replace(/^RO\s+/i, '')
       })),
-      state: uccSegmentsData.state.join()
+      state: uccSegmentsData.state
     };
   } catch (err) {
     logger.error(`Error in insertTypeOfWork: ${err.message}`);
@@ -874,6 +874,7 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
         user_id: uccRecord.created_by,
       },
       select: {
+        id:true,
         type_of_issue: true,
         start_distance_km: true,
         start_distance_metre: true,
@@ -909,11 +910,12 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
   }));
   
     
-    const fileRecord = await prisma.supporting_documents.findMany({
+    const fileRecord = await prisma.documents_master.findMany({
       where: {
-        created_by: uccRecord.created_by.toString(),
-        is_deleted: false,
+        // created_by: uccRecord.created_by.toString(),
+        // is_deleted: false,
         // ucc_id: id
+        ucc_id: uccRecord.ucc_id
       },
       select: {
         document_id: true,
