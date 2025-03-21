@@ -165,10 +165,10 @@ export const uploadMultipleFileService = async (req, res) => {
     if (!uploadFileResult || uploadFileResult.$metadata.httpStatusCode !== STATUS_CODES.OK) {
       throw new APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, RESPONSE_MESSAGES.ERROR.FILE_UPLOAD_FAILED);
     }
-
+const uccId = Number(req.body.ucc_id)
     const savedFile = await prisma.documents_master.create({
       data: {
-        ucc_id: req.body.ucc_id,
+        ucc_id: uccId,
         document_type: process.env.DOCUMENT_TYPE,
         document_name: file.originalname,
         document_path: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${params.Key}`,
@@ -380,6 +380,18 @@ export async function insertTypeOfWork(req, userId, reqBody) {
 
     const stretchStatePiuRoData = await getStretchPiuRoAndStateBasedOnUserId(req);
     const uccSegmentsData = await getStretchPiuRoAndState(stretchUsc);
+
+    const roName = stretchStatePiuRoData.roOffices[0].office_name;
+
+    const stateData = await prisma.ml_states.findFirst({
+      where: {
+        state_name: roName
+      },
+      select: {
+        state_id: true,
+        state_name: true
+      }
+    })
     
     const stretchRecords = await prisma.Stretches.findMany({
       where: {
@@ -482,7 +494,7 @@ export async function insertTypeOfWork(req, userId, reqBody) {
         id: ro.office_id,
         name: ro.office_name.replace(/^RO\s+/i, '')
       })),
-      state: uccSegmentsData.state.join()
+      state: stateData
     };
   } catch (err) {
     logger.error(`Error in insertTypeOfWork: ${err.message}`);
@@ -603,10 +615,11 @@ export const insertContractDetails = async (req) => {
 export async function getMultipleFileFromS3(req, userId) {
   try {
     // Fetch all documents for the user that are not deleted
+    const uccId = Number(req.query.ucc_id)
     const fileRecords = await prisma.documents_master.findMany({
       where: {
         created_by: userId.toString(),
-        ucc_id: req.query.ucc_id,
+        ucc_id: uccId,
         is_deleted: false,
       },
       select: {
@@ -702,6 +715,7 @@ export const deleteMultipleFileService = async (ids) => {
 export const getcontractListService = async (req, res) => {
   let { stretchIds, piu, ro, program, phase, typeOfWork, scheme, corridor, page = 1, limit = 10, exports, search } = req.body;
   const userId = req.user?.user_id;
+  const designation = req.user?.designation;
   page = parseInt(page);
   limit = parseInt(limit);
   const skip = (page - 1) * limit;
@@ -748,7 +762,7 @@ export const getcontractListService = async (req, res) => {
     prisma.$queryRawUnsafe(`
       SELECT DISTINCT ON ("UCC") "UCC", "TypeofWork", "StretchID", "ProjectName", "PIU", 
         "TotalLength", "RevisedLength", "CorridorCode", "RO", "Scheme", 
-        "PhaseCode", "ProgramName", public.ST_AsGeoJSON(geom) AS geojson
+        "PhaseCode", "ProgramName","ProjectStatus", public.ST_AsGeoJSON(geom) AS geojson
       FROM "nhai_gis"."UCCSegments"
       ${whereCondition}
       ORDER BY "UCC"
@@ -758,8 +772,6 @@ export const getcontractListService = async (req, res) => {
       SELECT COUNT(*)::int AS count FROM "nhai_gis"."UCCSegments" ${whereCondition}
     `),
   ]);
-
-const newIds = result.map(item => item.UCC);
   const ids = result.map(item => item.StretchID);
   const stretchDetails = await prisma.Stretches.findMany({
     where: { StretchID: { in: ids } },
@@ -771,11 +783,27 @@ const newIds = result.map(item => item.UCC);
     return acc;
   }, {});
 
-  const finalContractList = result.map((item) => ({
+  let finalContractList ;
+  if(designation == STRING_CONSTANT.IT_HEAD){
+   finalContractList = await Promise.all(result.map(async (item) => {
+    const [editCount] = await Promise.all([
+      prisma.ucc_change_log.count({
+        where: { ucc_id: item.UCC }
+      })
+    ]);
+  
+    return {
+      ...item,
+      stretchName: stretchMap[item.StretchID], // Add stretchName
+      editCount // Add editCount
+    };
+  }));
+}else{
+  finalContractList = result.map((item) => ({
     ...item,
-    status: STRING_CONSTANT.AWARDED,
     stretchName: stretchMap[item.StretchID],
   }));
+}
 
   if (exports) {
     const headers = [
@@ -858,24 +886,48 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
         user_id: uccRecord.created_by,
       },
       select: {
+        id:true,
         type_of_issue: true,
         start_distance_km: true,
         start_distance_metre: true,
         end_distance_km: true,
         end_distance_metre: true,
-        // start_distance_km: true,
         startlatitude: true,
         startlongitude: true,
         endlatitude: true,
         endlongitude: true,
+        type_of_work_ucc_type_of_work_location_type_of_workTotype_of_work: {  // Correct relation field
+          select: {
+            name_of_work: true, // Selecting specific field from related table
+          },
+        },
       },
     });
-
-    const fileRecord = await prisma.supporting_documents.findMany({
+    
+    const groupedData = type_of_work.reduce((acc, item) => {
+      const nameOfWork = item.type_of_work_ucc_type_of_work_location_type_of_workTotype_of_work.name_of_work;
+  
+      if (!acc[nameOfWork]) {
+          acc[nameOfWork] = [];
+      }
+  
+      acc[nameOfWork].push(item);
+      return acc;
+  }, {});
+  
+  // Convert to array format (optional)
+  const type_of_work_result = Object.entries(groupedData).map(([name_of_work, items]) => ({
+      name_of_work,
+      data: items
+  }));
+  
+    
+    const fileRecord = await prisma.documents_master.findMany({
       where: {
-        created_by: uccRecord.created_by.toString(),
-        is_deleted: false,
+        // created_by: uccRecord.created_by.toString(),
+        // is_deleted: false,
         // ucc_id: id
+        ucc_id: uccRecord.ucc_id
       },
       select: {
         document_id: true,
@@ -886,7 +938,7 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
       },
     });
         
-    const ucc_nh_details_data = await prisma.ucc_nh_state_details.findMany({
+    const ucc_nh_state_details_data = await prisma.ucc_nh_state_details.findMany({
       where: {
         ucc_id: uccRecord.ucc_id,
       },
@@ -896,22 +948,27 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
             state_name: true,
           },
         },
-        districts_master: {
+      },
+    });
+    let ucc_nh_details_final_data = []
+    for (let id of ucc_nh_state_details_data) {
+      const districts = await prisma.districts_master.findMany({
+        where: {
+          district_id: { in: id.district_id } // No need to wrap it in another array
+        },
         select: {
           district_name: true
         }
-      },
-      ucc_nh_details: true
-    //   ucc_nh_details: {
-    //   select: {
-    //     id: true,
-    //     nh_number: true,
-    //     start_chainage: true,
-    //     end_chainage: true,
-    //     length: true,
-    //     status: true
-    //   },
-    // },
+      });
+      id.district_name = districts
+      id.state_name = id.ml_states.state_name
+      delete id.ml_states
+      ucc_nh_details_final_data.push(id)
+    }
+    
+    const ucc_nh_details_data = await prisma.ucc_nh_details.findMany({
+      where: {
+        ucc_id: uccRecord.ucc_id,
       },
     });
     
@@ -924,9 +981,10 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
       state: uccRecord.ml_states.state_name,
       scheme_master: uccRecord.scheme_master.scheme_name,
       or_office_master: uccRecord.or_office_master.office_name,
-      type_of_work: type_of_work ? type_of_work : null,
+      type_of_work: type_of_work_result ? type_of_work_result : null,
       supporting_documents: fileRecord,
-      nation_highway_and_state: ucc_nh_details_data
+      state_and_district: ucc_nh_details_final_data,
+      nation_highway: ucc_nh_details_data
     };
     return data;
   } catch (error) {
