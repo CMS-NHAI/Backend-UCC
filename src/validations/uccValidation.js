@@ -186,7 +186,7 @@ export const contractValidationSchema = Joi.object({
   limit: Joi.number().integer().positive().optional(), // Optional positive integer
   page: Joi.number().integer().positive().optional(), // Optional positive integer
   exports: Joi.boolean().optional(), // Optional string with value 'true'
-  search: Joi.string().optional(), // Optional string
+  search: Joi.string().allow("").optional(), // Optional string
 });
 
 export const deleteFileValidationSchema = Joi.object({
@@ -202,7 +202,7 @@ export const nhDetailsSchema = Joi.object({
   nhDetails: Joi.array().items(
     Joi.object({
       nhNumber: Joi.string().required().messages({ 'any.required': 'NH Number is required' }),
-      startChainage: Joi.number().min(0).required().messages({ 'any.required': 'Start Chainage is required' }),
+      startChainage: Joi.number().min(1).required().messages({ 'any.required': 'Start Chainage is required' }),
       endChainage: Joi.number().min(Joi.ref('startChainage')).required().messages({ 'any.required': 'End Chainage is required' }),
       length: Joi.number().positive().required().messages({ 'any.required': 'Length is required' }),
     })
@@ -211,9 +211,48 @@ export const nhDetailsSchema = Joi.object({
   nhStateDetails: Joi.array().items(
     Joi.object({
       stateId: Joi.number().integer().positive().required().messages({ 'any.required': 'State ID is required' }),
-      districtId: Joi.number().integer().positive().required().messages({ 'any.required': 'District ID is required' }),
+      districtId: Joi.array()
+      .items(Joi.number().integer().positive().required())
+      .min(1).required()
+      .messages({ 'any.required': 'District ID is required' }),
       stateDistance: Joi.number().positive().required().messages({ 'any.required': 'State Distance is required' }),
     })
   ).min(1).required().messages({ 'array.min': 'At least one NH state detail is required' }),
 });
 
+export const updateNHDetailsSchema =Joi.object({
+  nhDetails: Joi.array().items(
+    Joi.object({
+      id:Joi.number().required().messages({'any.required':'id is required'}),
+      nhNumber: Joi.string().required().messages({ 'any.required': 'NH Number is required' }),
+      startChainage: Joi.number().min(1).required().messages({ 'any.required': 'Start Chainage is required' }),
+      endChainage: Joi.number().min(Joi.ref('startChainage')).required().messages({ 'any.required': 'End Chainage is required' }),
+      length: Joi.number().positive().required().messages({ 'any.required': 'Length is required' }),
+    })
+  ).min(1).required().messages({ 'array.min': 'At least one NH detail is required' }),
+
+  nhStateDetails: Joi.array().items(
+    Joi.object({
+      id:Joi.number().required().messages({'any.required':'id is required'}),
+      stateId: Joi.number().integer().positive().required().messages({ 'any.required': 'State ID is required' }),
+      districtId: Joi.array()
+      .items(Joi.number().integer().positive().required())
+      .min(1).required()
+      .messages({ 'any.required': 'District ID is required' }),
+      stateDistance: Joi.number().positive().required().messages({ 'any.required': 'State Distance is required' }),
+    })
+  ).min(1).required().messages({ 'array.min': 'At least one NH state detail is required' }),
+});
+
+export const approvalStatusSchema = Joi.object({
+  uccId:Joi.number().required().messages({'any.required':'uccId is required'}),
+  approvalStatus:Joi.string()
+  .trim()
+  .min(1)
+  .required()
+  .messages({
+    "string.base": "ApprovalStatus must be a string.",
+    "string.empty": "ApprovalStatus is required.",
+    "any.required": "ApprovalStatus is required."
+  }),
+})
