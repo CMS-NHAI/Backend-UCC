@@ -29,13 +29,13 @@ export async function fetchRequiredStretchData(uccId, startChainagesLat, startCh
             SELECT 
             public.ST_AsGeoJSON(
                 public.ST_LineSubstring(
-                    (public.ST_Dump(wkb_geometry)).geom,  -- Unnest MultiLineString to individual LineStrings
-                    public.ST_LineLocatePoint((public.ST_Dump(wkb_geometry)).geom, public.ST_SetSRID(public.ST_Point(${startChainagesLat}, ${startChainagesLong}), 4326)),
-                    public.ST_LineLocatePoint((public.ST_Dump(wkb_geometry)).geom, public.ST_SetSRID(public.ST_Point(${endChainagesLat}, ${endChainagesLong}), 4326))
+                    (public.ST_Dump(geom)).geom,  -- Unnest MultiLineString to individual LineStrings
+                    public.ST_LineLocatePoint((public.ST_Dump(geom)).geom, public.ST_SetSRID(public.ST_Point(${startChainagesLat}, ${startChainagesLong}), 4326)),
+                    public.ST_LineLocatePoint((public.ST_Dump(geom)).geom, public.ST_SetSRID(public.ST_Point(${endChainagesLat}, ${endChainagesLong}), 4326))
                 )
             ) as segment_geojson
-            FROM nhai_gis.nhaicenterlines
-            WHERE "ucc"=${uccId};
+            FROM nhai_gis."UCCSegments"
+            WHERE "UCC"=${uccId};
         `;
 
         logger.info("Stretch splitted successfully returning data.")
@@ -443,13 +443,13 @@ export async function getStretchPiuRoAndState(stretchIds,) {
     }
     logger.info("Stretche PIU and RO details fetched successfully.");
 
-    const stretchPiuRos = { piu: [], ro: [], state: [], stretchId: [] };
+    const stretchPiuRos = { piu: [], ro: [], state: [], stretchId: [], stateId:[] };
 
     uccSegments.forEach((segment) => {
         const ro = segment.RO;
         stretchPiuRos.piu.push(segment.PIU);
         stretchPiuRos.ro.push(ro ? ro.split(STRING_CONSTANT.RO)[1] : ro);
-        stretchPiuRos.state.push(segment.State);
+        stretchPiuRos.state.push({name:segment.State, stateId:segment.stateId});
         stretchPiuRos.stretchId.push(segment.StretchID);
     });
 
