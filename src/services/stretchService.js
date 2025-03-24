@@ -29,13 +29,13 @@ export async function fetchRequiredStretchData(uccId, startChainagesLat, startCh
             SELECT 
             public.ST_AsGeoJSON(
                 public.ST_LineSubstring(
-                    (public.ST_Dump(wkb_geometry)).geom,  -- Unnest MultiLineString to individual LineStrings
-                    public.ST_LineLocatePoint((public.ST_Dump(wkb_geometry)).geom, public.ST_SetSRID(public.ST_Point(${startChainagesLat}, ${startChainagesLong}), 4326)),
-                    public.ST_LineLocatePoint((public.ST_Dump(wkb_geometry)).geom, public.ST_SetSRID(public.ST_Point(${endChainagesLat}, ${endChainagesLong}), 4326))
+                    (public.ST_Dump(geom)).geom,  -- Unnest MultiLineString to individual LineStrings
+                    public.ST_LineLocatePoint((public.ST_Dump(geom)).geom, public.ST_SetSRID(public.ST_Point(${startChainagesLat}, ${startChainagesLong}), 4326)),
+                    public.ST_LineLocatePoint((public.ST_Dump(geom)).geom, public.ST_SetSRID(public.ST_Point(${endChainagesLat}, ${endChainagesLong}), 4326))
                 )
             ) as segment_geojson
-            FROM nhai_gis.nhaicenterlines
-            WHERE "ucc"=${uccId};
+            FROM nhai_gis."UCCSegments"
+            WHERE "UCC"=${uccId};
         `;
 
         logger.info("Stretch splitted successfully returning data.")
