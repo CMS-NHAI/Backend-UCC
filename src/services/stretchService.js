@@ -474,7 +474,7 @@ async function getUserStretchIds(userId) {
 
     logger.info("Fetching all stretch IDs associated with the UCC IDs.");
     // Fetch all stretchIds based on UCC IDs
-    const uccSegments = await prisma.uCCSegments.findMany({
+    const uccSegments = await prisma.UCCSegments.findMany({
         where: {
             UCC: { in: uccIds },
         },
