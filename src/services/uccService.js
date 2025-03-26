@@ -107,7 +107,8 @@ export const uploadFileService = async (req, res) => {
       is_deleted: false,
       created_by: user_id.toString(),
       status: STRING_CONSTANT.DRAFT,
-      ucc_id: parseInt(uccId)
+      module_type_id: parseInt(uccId),
+      module_type: STRING_CONSTANT.UCC
     },
   });
 
@@ -168,7 +169,8 @@ export const uploadMultipleFileService = async (req, res) => {
 const uccId = Number(req.body.ucc_id)
     const savedFile = await prisma.documents_master.create({
       data: {
-        ucc_id: uccId,
+        module_type_id: parseInt(uccId),
+        module_type: STRING_CONSTANT.UCC,
         document_type: process.env.DOCUMENT_TYPE,
         document_name: file.originalname,
         document_path: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${params.Key}`,
@@ -630,12 +632,12 @@ export async function getMultipleFileFromS3(req, userId) {
         created_at: true,
         created_by: true,
         is_deleted: true,
-        ucc_id:true,
+        module_type_id: parseInt(uccId),
+        module_type: STRING_CONSTANT.UCC,
         status: true
-
       },
       orderBy: {
-        created_at: 'desc',
+        created_at: STRING_CONSTANT.DESC,
       },
     });
 
@@ -987,7 +989,9 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
         document_path: true,
         document_name: true,
         is_deleted: true,
-        document_type: true
+        document_type: true,
+        module_type: true,
+        module_type_id: true
       },
     });
         
@@ -1143,7 +1147,11 @@ export async function createFinalUCC(req, uccId) {
       });
 
       await prisma.documents_master.updateMany({
-        where: { ucc_id: uccId, status: STRING_CONSTANT.DRAFT },
+        where: { 
+          module_type_id: parseInt(uccId),
+          module_type: STRING_CONSTANT.UCC, 
+          status: STRING_CONSTANT.DRAFT 
+        },
         data: { status: STRING_CONSTANT.BALANCE_FOR_AWARD },
       });
 
