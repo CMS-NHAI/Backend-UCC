@@ -724,18 +724,21 @@ export const getcontractListService = async (req, res) => {
   }
 
   let whereClauses = [];
+  let uccMasterWhereClause = [];
 
   if (stretchIds?.length > 0) {
     whereClauses.push(`"StretchID" IN (${stretchIds.map(id => `'${id}'`).join(',')})`);
+    uccMasterWhereClause.push(`"stretch_id" && ARRAY[${stretchIds.map(id => `'${id}'`).join(',')}]::text[]`);
   } else {
     let getUserUccs = await prisma.ucc_user_mappings.findMany({
       where: { user_id: userId },
       select: { ucc_id: true },
     });
-    
+
     getUserUccs = getUserUccs.map((item) => `'${item.ucc_id}'`);
     if (getUserUccs.length > 0) {
       whereClauses.push(`"UCC" IN (${getUserUccs.join(',')})`);
+      uccMasterWhereClause.push(`"permanent_ucc" IN (${getUserUccs.join(',')})`);
     }
   }
 
@@ -746,19 +749,59 @@ export const getcontractListService = async (req, res) => {
       OR "UCC" ILIKE '%${search}%'
       OR "TypeofWork" ILIKE '%${search}%'
     )`);
+    uccMasterWhereClause.push(`(
+      "contract_name" ILIKE '%${search}%'
+      OR "piu_id"::text ILIKE '%${search}%'
+      OR "permanent_ucc" ILIKE '%${search}%'
+      OR "work_types"::text ILIKE '%${search}%'
+    )`);
   }
 
-  if (piu?.length) whereClauses.push(`"PIU" IS NOT NULL AND "PIU" IN (${piu.map(p => `'${p}'`).join(",")})`);
-  if (ro?.length) whereClauses.push(`"RO" IS NOT NULL AND "RO" IN (${ro.map(r => `'${r}'`).join(",")})`);
-  if (program?.length) whereClauses.push(`"ProgramName" IS NOT NULL AND "ProgramName" IN (${program.map(p => `'${p}'`).join(",")})`);
-  if (phase?.length) whereClauses.push(`"PhaseCode" IS NOT NULL AND "PhaseCode" IN (${phase.map(p => `'${p}'`).join(",")})`);
-  if (typeOfWork?.length) whereClauses.push(`"TypeofWork" IS NOT NULL AND "TypeofWork" IN (${typeOfWork.map(t => `'${t}'`).join(",")})`);
-  if (scheme?.length) whereClauses.push(`"Scheme" IS NOT NULL AND "Scheme" IN (${scheme.map(s => `'${s}'`).join(",")})`);
-  if (corridor?.length) whereClauses.push(`"CorridorCode" IS NOT NULL AND "CorridorCode" IN (${corridor.map(c => `'${c}'`).join(",")})`);
+  if (piu?.length) {
+    whereClauses.push(`"PIU" IS NOT NULL AND "PIU" IN (${piu.map(p => `'${p}'`).join(",")})`);
+
+    const officeIds = await prisma.or_office_master.findMany({
+      where: { office_name: { in: piu } },
+      select: { office_id: true },
+    });
+  
+    const officeIdList = officeIds.map(o => o.office_id);
+  
+    // Step 2: Use these IDs in the filtering
+    if (officeIdList.length > 0) {
+      whereClauses.push(`"PIU" IS NOT NULL AND "PIU" IN (${piu.map(p => `'${p}'`).join(",")})`);
+      uccMasterWhereClause.push(`"piu_id" && ARRAY[${officeIdList.join(",")}]::int[]`);
+    }
+  }
+  if (ro?.length) {
+    whereClauses.push(`"RO" IS NOT NULL AND "RO" IN (${ro.map(r => `'${r}'`).join(",")})`);
+    uccMasterWhereClause.push(`"ro_id" IS NOT NULL AND "ro_id" IN (${ro.map(r => `'${r}'`).join(",")})`);
+  }
+  if (program?.length) {
+    whereClauses.push(`"ProgramName" IS NOT NULL AND "ProgramName" IN (${program.map(p => `'${p}'`).join(",")})`);
+    uccMasterWhereClause.push(`"project_code_id" IS NOT NULL AND "project_code_id" IN (${program.map(p => `'${p}'`).join(",")})`);
+  }
+  if (phase?.length) {
+    whereClauses.push(`"PhaseCode" IS NOT NULL AND "PhaseCode" IN (${phase.map(p => `'${p}'`).join(",")})`);
+    uccMasterWhereClause.push(`"phase_code_id" IS NOT NULL AND "phase_code_id" IN (${phase.map(p => `'${p}'`).join(",")})`);
+  }
+  if (typeOfWork?.length) {
+    whereClauses.push(`"TypeofWork" IS NOT NULL AND "TypeofWork" IN (${typeOfWork.map(t => `'${t}'`).join(",")})`);
+    uccMasterWhereClause.push(`"work_types" && ARRAY[${typeOfWork.map(t => `'${t}'`).join(",")}]::text[]`);
+  }
+  if (scheme?.length) {
+    whereClauses.push(`"Scheme" IS NOT NULL AND "Scheme" IN (${scheme.map(s => `'${s}'`).join(",")})`);
+    uccMasterWhereClause.push(`"scheme_id" IS NOT NULL AND "scheme_id" IN (${scheme.map(s => `'${s}'`).join(",")})`);
+  }
+  if (corridor?.length) {
+    whereClauses.push(`"CorridorCode" IS NOT NULL AND "CorridorCode" IN (${corridor.map(c => `'${c}'`).join(",")})`);
+    uccMasterWhereClause.push(`"corridor_code_id" IS NOT NULL AND "corridor_code_id" IN (${corridor.map(c => `'${c}'`).join(",")})`);
+  }
 
   const whereCondition = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' OR ')}` : '';
+  const uccMasterWhereCondition = uccMasterWhereClause.length > 0 ? `WHERE ${uccMasterWhereClause.join(' OR ')}` : '';
 
-  const [result, totalCount] = await Promise.all([
+  const [gisContracts, masterContracts, totalCount] = await Promise.all([
     prisma.$queryRawUnsafe(`
       SELECT DISTINCT ON ("UCC") "UCC", "TypeofWork", "StretchID", "ProjectName", "PIU", 
         "TotalLength", "RevisedLength", "CorridorCode", "RO", "Scheme", 
@@ -769,12 +812,22 @@ export const getcontractListService = async (req, res) => {
       LIMIT ${limit} OFFSET ${skip}
     `),
     prisma.$queryRawUnsafe(`
+      SELECT "permanent_ucc" AS "UCC", "contract_name" AS "ProjectName", "piu_id" AS "PIU",
+        "work_types" AS "TypeofWork", "contract_length" AS "TotalLength",
+        "scheme_id" AS "Scheme", "corridor_code_id" AS "CorridorCode",
+        "phase_code_id" AS "PhaseCode", "project_name", "stretch_name", "stretch_id" AS "StretchID"
+      FROM "tenant_nhai"."ucc_master"
+      ${uccMasterWhereCondition}
+      LIMIT ${limit} OFFSET ${skip}
+    `),
+    prisma.$queryRawUnsafe(`
       SELECT COUNT(*)::int AS count FROM "nhai_gis"."UCCSegments" ${whereCondition}
     `),
   ]);
-  const ids = result.map(item => item.StretchID);
+  const combinedResults = [...gisContracts, ...masterContracts];
+  const ids = combinedResults.map(item => item.StretchID).filter(Boolean);
   const stretchDetails = await prisma.Stretches.findMany({
-    where: { StretchID: { in: ids } },
+    where: { StretchID: { in: ids.flat() } },
     select: { StretchID: true, ProjectName: true },
   });
 
@@ -794,14 +847,14 @@ export const getcontractListService = async (req, res) => {
   
     return {
       ...item,
-      stretchName: stretchMap[item.StretchID], // Add stretchName
+      stretchName: stretchMap[item.StretchID] || item.stretch_name, // Add stretchName
       editCount // Add editCount
     };
   }));
 }else{
-  finalContractList = result.map((item) => ({
+  finalContractList = combinedResults.map((item) => ({
     ...item,
-    stretchName: stretchMap[item.StretchID],
+    stretchName: stretchMap[item.StretchID] || item.stretch_name,
   }));
 }
 
@@ -1060,9 +1113,9 @@ export async function createFinalUCC(req, uccId) {
     const packageCode = await generatePackageCode(StretchID);
     const permanentUCC = `N/${PhaseCode}${CorridorCode}/${StretchCode}${packageCode}/${stateCode}`;
 
-    logger.info("Updating ucc_master, ucc_type_of_work_location, documents_master, ucc_nh_details.")
-    await prisma.$transaction([
-      prisma.package_master.create({
+    logger.info("Updating tables in a single transaction.");
+    await prisma.$transaction(async (prisma) => {
+      await prisma.package_master.create({
         data: {
           package_code: packageCode,
           stretch_code: StretchID,
@@ -1071,9 +1124,9 @@ export async function createFinalUCC(req, uccId) {
           update_by: userId,
           updated_at: currentTimestamp
         }
-      }),
+      });
 
-      prisma.ucc_master.update({
+      await prisma.ucc_master.update({
         where: { ucc_id: uccId },
         data: {
           status: STRING_CONSTANT.BALANCE_FOR_AWARD,
@@ -1082,26 +1135,55 @@ export async function createFinalUCC(req, uccId) {
           permanent_ucc: permanentUCC,
           id: permanentUCC
         },
-      }),
+      });
 
-      prisma.ucc_type_of_work_location.updateMany({
+      await prisma.ucc_type_of_work_location.updateMany({
         where: { ucc: uccId, status: draftStatusID },
         data: { status: balanceForAwardStatusID },
-      }),
+      });
 
-      prisma.documents_master.updateMany({
+      await prisma.documents_master.updateMany({
         where: { ucc_id: uccId, status: STRING_CONSTANT.DRAFT },
         data: { status: STRING_CONSTANT.BALANCE_FOR_AWARD },
-      }),
+      });
 
-      prisma.ucc_nh_details.updateMany({
+      await prisma.ucc_nh_details.updateMany({
         where: { ucc_id: uccId },
         data: { status: STRING_CONSTANT.BALANCE_FOR_AWARD },
-      }),
-    ]);
+      });
 
-    logger.info("Tables updated successfully.")
+      // Handle ucc_user_mappings inside the same transaction
+      const existingMapping = await prisma.ucc_user_mappings.findFirst({
+        where: { ucc_id: permanentUCC, user_id: userId },
+      });
+
+      if (existingMapping) {
+        await prisma.ucc_user_mappings.updateMany({
+          where: { ucc_id: permanentUCC, user_id: userId },
+          data: {
+            status: STRING_CONSTANT.BALANCE_FOR_AWARD,
+            updated_by: userId.toString(),
+            updated_at: currentTimestamp,
+          },
+        });
+      } else {
+        await prisma.ucc_user_mappings.create({
+          data: {
+            ucc_id: permanentUCC,
+            user_id: userId,
+            status: STRING_CONSTANT.BALANCE_FOR_AWARD,
+            created_by: userId.toString(),
+            created_at: currentTimestamp,
+            updated_by: userId.toString(),
+            updated_at: currentTimestamp,
+          },
+        });
+      }
+    });
+
+    logger.info("All updates completed successfully.");
     return { message: "Status updated successfully", permanentUCC };
+
   } catch (error) {
     logger.error({
       message: error.message,
