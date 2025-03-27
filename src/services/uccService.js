@@ -814,12 +814,33 @@ export const getcontractListService = async (req, res) => {
       LIMIT ${limit} OFFSET ${skip}
     `),
     prisma.$queryRawUnsafe(`
-      SELECT "permanent_ucc" AS "UCC", "contract_name" AS "ProjectName", "piu_id" AS "PIU",
-        "work_types" AS "TypeofWork", "contract_length" AS "TotalLength",
-        "scheme_id" AS "Scheme", "corridor_code_id" AS "CorridorCode",
-        "phase_code_id" AS "PhaseCode", "project_name", "stretch_name", "stretch_id" AS "StretchID"
-      FROM "tenant_nhai"."ucc_master"
+      SELECT 
+        um."permanent_ucc" AS "UCC", 
+        um."contract_name" AS "ProjectName", 
+        STRING_AGG(oom."office_name", ', ') AS "PIU", -- Combine multiple PIU names if needed
+        STRING_AGG(DISTINCT tow."name_of_work", ', ') AS "TypeofWork", 
+        um."contract_length" AS "TotalLength",
+        um."scheme_id" AS "Scheme", 
+        um."corridor_code_id" AS "CorridorCode",
+        um."phase_code_id" AS "PhaseCode", 
+        um."project_name", 
+        um."stretch_name", 
+        um."stretch_id" AS "StretchID",
+        um."status" AS "ProjectStatus"
+      FROM "tenant_nhai"."ucc_master" um
+      LEFT JOIN "tenant_nhai"."or_office_master" oom 
+        ON oom."office_id" = ANY(um."piu_id")
+        AND oom."office_type" = 'PIU'
+      -- Join to fetch work type names
+      LEFT JOIN "tenant_nhai"."ucc_type_of_work_location" utwl 
+          ON utwl."ucc" = um."ucc_id"
+      LEFT JOIN "tenant_nhai"."type_of_work" tow 
+          ON utwl."type_of_work" = tow."ID"
       ${uccMasterWhereCondition}
+      GROUP BY um."permanent_ucc", um."contract_name", 
+               um."contract_length", um."scheme_id", um."corridor_code_id", 
+               um."phase_code_id", um."project_name", um."stretch_name", 
+               um."stretch_id", um."status"
       LIMIT ${limit} OFFSET ${skip}
     `),
     prisma.$queryRawUnsafe(`
