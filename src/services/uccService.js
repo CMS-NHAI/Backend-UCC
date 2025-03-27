@@ -487,6 +487,14 @@ export async function insertTypeOfWork(req, userId, reqBody) {
 
     const formattedContractLength = (totalContractLength).toFixed(2);
 
+    await prisma.ucc_master.update({
+      where: { ucc_id: uccId },
+      data: {
+        contract_name: resultName,
+        project_name: resultName
+      }
+    });
+
     return {
       uccId,
       generatedName: resultName,
@@ -1104,7 +1112,7 @@ export async function createFinalUCC(req, uccId) {
 
     logger.info("Fetching longest stretch data.")
     const longestStretch = await prisma.$queryRaw`
-        SELECT "PhaseCode", "CorridorCode", "StretchCode", "StretchID"
+        SELECT "PhaseCode", "CorridorCode", "StretchCode", "StretchID", "ProjectName"
         FROM "nhai_gis"."Stretches"
         WHERE "StretchID" = ANY(${stretchIds})
         ORDER BY public.ST_Length(geom) DESC
@@ -1116,7 +1124,7 @@ export async function createFinalUCC(req, uccId) {
     }
     logger.info("Longest stretch data fetched successfully.")
 
-    const { PhaseCode, CorridorCode, StretchCode, StretchID } = longestStretch[0];
+    const { PhaseCode, CorridorCode, StretchCode, StretchID, ProjectName } = longestStretch[0];
 
     logger.info("Fetching ucc nh state details to get state code.")
     const nhState = await prisma.ucc_nh_state_details.findFirst({
@@ -1158,7 +1166,8 @@ export async function createFinalUCC(req, uccId) {
           phase_code_id: parseInt(PhaseCode),
           corridor_code_id: parseInt(CorridorCode),
           permanent_ucc: permanentUCC,
-          id: permanentUCC
+          id: permanentUCC,
+          stretch_name: ProjectName
         },
       });
 
