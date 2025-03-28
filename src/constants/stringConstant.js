@@ -20,7 +20,9 @@ export const STRING_CONSTANT = Object.freeze({
     REJECTED:"REJECTED",
     APPROVED:"APPROVED",
     IT_HEAD:"IT Head",
-    UCC: "UCC"
+    UCC: "UCC",
+    LINE_STRING: "LineString",
+    MULTI_LINE_STRING :"MultiLineString"
 });
 
 export const ALLOWED_TYPES_OF_WORK = Object.freeze([
