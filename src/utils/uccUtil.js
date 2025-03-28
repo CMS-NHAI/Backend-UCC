@@ -2,13 +2,33 @@
  * @author Deepak
  */
 import { STRING_CONSTANT } from "../constants/stringConstant.js";
+import { fetchSplitStretchGeometry } from "../services/stretchService.js";
 
-export function getSegmentInsertData(segment, typeOfWork, userId, typeOfIssue, uccId) {
+export async function getSegmentInsertData(segment, typeOfWork, userId, typeOfIssue, uccId, stretchId) {
     const {
         startChainage,
         endChainage,
         endLane,
     } = segment;
+
+    // Fetch GeoJSON of the split segment
+    const segmentGeoJSON = await fetchSplitStretchGeometry(
+        stretchId,
+        startChainage.lat,
+        startChainage.long,
+        endChainage.lat,
+        endChainage.long
+    );
+
+    if (!segmentGeoJSON) {
+        throw new APIError(STATUS_CODES.NOT_FOUND, "Failed to fetch segment geometry.");
+    }
+
+    const geometryData = {
+        type: segmentGeoJSON.length > 1 ? "MultiLineString" : "LineString",
+        coordinates: segmentGeoJSON.length > 1 ? [segmentGeoJSON] : segmentGeoJSON,
+    };
+
     return {
         type_of_work: typeOfWork,
         startlatitude: startChainage.lat,
@@ -23,7 +43,8 @@ export function getSegmentInsertData(segment, typeOfWork, userId, typeOfIssue, u
         ucc: uccId ? uccId : null,
         type_of_issue: typeOfIssue,
         status: 1,
-        user_id: userId
+        user_id: userId,
+        geom: geometryData
     };
 }
 

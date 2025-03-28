@@ -456,7 +456,7 @@ export async function insertTypeOfWork(req, userId, reqBody) {
           const segmentLength = calculateSegmentLength(item.startChainage, item.endChainage);
           totalContractLength += segmentLength;
 
-          const segmentData = await getSegmentInsertData(item, typeOfWorkId, userId, TYPE_OF_ISSUES.SEGMENT, uccId);
+          const segmentData = await getSegmentInsertData(item, typeOfWorkId, userId, TYPE_OF_ISSUES.SEGMENT, uccId, stretchUsc[0]);
           return segmentData;
         });
         const resolvedSegmentData = await Promise.all(segmentNamePromises);
@@ -480,9 +480,11 @@ export async function insertTypeOfWork(req, userId, reqBody) {
       }
     }
 
-    await prisma.ucc_type_of_work_location.createMany({
-      data: dataToInsert,
-    });
+
+    if (dataToInsert.length > 0) {
+      await bulkInsertTypeOfWork(dataToInsert);
+    }    
+
     logger.info("Type of work created successfully.");
 
     const formattedContractLength = (totalContractLength).toFixed(2);
@@ -1278,3 +1280,61 @@ async function generatePackageCode(stretchCode) {
     throw error;
   }
 }
+
+export async function bulkInsertTypeOfWork(dataToInsert) {
+  if (!Array.isArray(dataToInsert) || dataToInsert.length === 0) {
+    throw new APIError(STATUS_CODES.BAD_REQUEST, "No valid data to insert.");
+  }
+
+  try {
+    const values = dataToInsert
+      .map((data) => {
+        let geomValue = "NULL";
+        if (data.geom) {
+            const geometry = {
+              type: "MultiLineString",
+              coordinates: data.geom.type === "MultiLineString" 
+                ? data.geom.coordinates 
+                : [data.geom.coordinates.coordinates]
+            }
+            geomValue = `public.ST_SetSRID(public.ST_GeomFromGeoJSON('${JSON.stringify(geometry)}'), 4326)`;
+          }
+    
+          return `(
+          ${data.ucc},
+          ${data.type_of_work},
+          ${data.user_id},
+          ${data.status},
+          '${data.type_of_issue}',
+          ${data.startlatitude || "NULL"},
+          ${data.startlongitude || "NULL"},
+          ${data.endlatitude || "NULL"},
+          ${data.endlongitude || "NULL"},
+          ${data.start_distance_km || "NULL"},
+          ${data.start_distance_metre || "NULL"},
+          ${data.end_distance_km || "NULL"},
+          ${data.end_distance_metre || "NULL"},
+          ${data.lane || "NULL"},
+          ${geomValue}
+        )`
+      }).join(", ");
+
+    const query = `
+      INSERT INTO tenant_nhai.ucc_type_of_work_location 
+      (
+        ucc, type_of_work, user_id, status, type_of_issue, 
+        startlatitude, startlongitude, endlatitude, endlongitude, 
+        start_distance_km, start_distance_metre, end_distance_km, 
+        end_distance_metre, lane, geom
+      ) 
+      VALUES ${values};
+    `;
+
+    await prisma.$executeRawUnsafe(query);
+    logger.info("Bulk insert into ucc_type_of_work_location successful.");
+  } catch (error) {
+    logger.error(`Error in bulkInsertTypeOfWork: ${error.message}`);
+    throw new APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, "Failed to insert type of work data.");
+  }
+}
+
