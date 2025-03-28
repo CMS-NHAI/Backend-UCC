@@ -43,12 +43,8 @@ export async function fetchRequiredStretchData(uccId, startChainagesLat, startCh
     } catch (error) {
         logger.error({
             message: RESPONSE_MESSAGES.ERROR.REQUEST_PROCESSING_ERROR,
-            error: error,
-            url: req.url,
-            method: req.method,
-            time: new Date().toISOString(),
         });
-        throw APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, RESPONSE_MESSAGES.ERROR.STRETCH_DATA_ERROR)
+        throw new APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, RESPONSE_MESSAGES.ERROR.STRETCH_DATA_ERROR)
     }
 }
 
@@ -101,7 +97,6 @@ async function nhaiStretchDetails(page, pageSize, stretchIds, req) {
     }
     const currentPage = page > totalPages ? totalPages : page;
 
-    console.time("MY Stretches API Fetch Stretches with geoJSON.");
     const stretches = await prisma.$queryRaw`
             SELECT 
                 s.id,
@@ -133,22 +128,7 @@ async function nhaiStretchDetails(page, pageSize, stretchIds, req) {
             LIMIT ${pageSize} OFFSET ${(currentPage - 1) * pageSize}
         `;
 
-
-    console.timeEnd("MY Stretches API Fetch Stretches with geoJSON.");
     logger.info("Stretches data fetched successfully. ");
-
-    console.time("MY Stretches API Fetch UCC Segements time.");
-    // const uccSegments = await prisma.UCCSegments.findMany({
-    //     where: {
-    //         StretchID: { in: stretchIds },
-    //     },
-    //     select: {
-    //         StretchID: true,
-    //         PIU: true,
-    //         RO: true,
-    //         UCC: true,
-    //     },
-    // });
 
     const uccSegments = await prisma.$queryRaw`
         SELECT 
@@ -161,16 +141,12 @@ async function nhaiStretchDetails(page, pageSize, stretchIds, req) {
         GROUP BY "StretchID";
     `;
 
-    console.timeEnd("MY Stretches API Fetch UCC Segements time.");
-
-    console.time("MY Stretches API Contracts Unique Count");
     const uccCounts = await prisma.$queryRaw`
         SELECT "StretchID", COUNT(DISTINCT "UCC") AS uniquecount
         FROM "nhai_gis"."UCCSegments"
         WHERE "StretchID" IN (${Prisma.join(stretchIds)})
         GROUP BY "StretchID";
     `;
-    console.timeEnd("MY Stretches API Contracts Unique Count");
 
     const data = stretches.map((item) => {
         const uniquePhases = Array.from(new Set(item.phases.map(getPhaseNameBeforeParentheses)));
@@ -309,7 +285,6 @@ export async function getUserStretches(req, userId, page, pageSize, projectType)
 
         return projectDetails(page, pageSize, projectType, stretchIds, req);
     } catch (error) {
-        console.log("ERRRRRRR ::::::::::::: ", error);
         logger.error({
             message: RESPONSE_MESSAGES.ERROR.REQUEST_PROCESSING_ERROR,
             error: error,
@@ -443,13 +418,13 @@ export async function getStretchPiuRoAndState(stretchIds,) {
     }
     logger.info("Stretche PIU and RO details fetched successfully.");
 
-    const stretchPiuRos = { piu: [], ro: [], state: [], stretchId: [], stateId:[] };
+    const stretchPiuRos = { piu: [], ro: [], state: [], stretchId: [], stateId: [] };
 
     uccSegments.forEach((segment) => {
         const ro = segment.RO;
         stretchPiuRos.piu.push(segment.PIU);
         stretchPiuRos.ro.push(ro ? ro.split(STRING_CONSTANT.RO)[1] : ro);
-        stretchPiuRos.state.push({name:segment.State, stateId:segment.stateId});
+        stretchPiuRos.state.push({ name: segment.State, stateId: segment.stateId });
         stretchPiuRos.stretchId.push(segment.StretchID);
     });
 
@@ -570,3 +545,39 @@ export async function exportMystretchesData(userId, res) {
 
     return await exportToCSV(res, stretchDetails, STRING_CONSTANT.MY_STRETCHES, headers);
 }
+
+export async function fetchSplitStretchGeometry(stretchId, startLat, startLong, endLat, endLong) {
+    try {
+        logger.info(`Fetching and splitting geometry for stretch ${stretchId}`);
+
+        const result = await prisma.$queryRaw`
+            SELECT 
+  public.ST_AsGeoJSON(
+    public.ST_Collect(
+      public.ST_LineSubstring(
+        dumped.geom,
+        public.ST_LineLocatePoint(dumped.geom, public.ST_SetSRID(public.ST_Point(${startLat}, ${startLong}), 4326)),
+        public.ST_LineLocatePoint(dumped.geom, public.ST_SetSRID(public.ST_Point(${endLat}, ${endLong}), 4326))
+      )
+    )
+  ) AS segment_geojson
+FROM (
+  -- Extract individual LineStrings from MultiLineString
+  SELECT (public.ST_Dump(geom)).geom
+  FROM nhai_gis."Stretches"
+  WHERE "StretchID" = ${stretchId}  
+) AS dumped;
+
+        `;
+
+        if (!result || result.length === 0 || !result[0].segment_geojson) {
+            throw new APIError(STATUS_CODES.NOT_FOUND, `No valid segment found for StretchID: ${stretchId}`);
+        }
+
+        return JSON.parse(result[0].segment_geojson);
+    } catch (error) {
+        logger.error(`Error fetching stretch geometry: ${error.message}`);
+        throw new APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, "Failed to fetch stretch geometry.");
+    }
+}
+

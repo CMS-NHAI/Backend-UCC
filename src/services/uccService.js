@@ -61,7 +61,7 @@ export const uploadFileService = async (req, res) => {
       RESPONSE_MESSAGES.ERROR.FILE_NOT_FOUND
     );
   }
-  
+
   const params = {
     Bucket: process.env.AWS_BUCKET_NAME,
     Key: `${process.env.S3_MAIN_FOLDER}/${process.env.S3_SUB_FOLDER}/${Date.now()}-${req.file.originalname}`,
@@ -166,7 +166,7 @@ export const uploadMultipleFileService = async (req, res) => {
     if (!uploadFileResult || uploadFileResult.$metadata.httpStatusCode !== STATUS_CODES.OK) {
       throw new APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, RESPONSE_MESSAGES.ERROR.FILE_UPLOAD_FAILED);
     }
-const uccId = Number(req.body.ucc_id)
+    const uccId = Number(req.body.ucc_id)
     const savedFile = await prisma.documents_master.create({
       data: {
         module_type_id: parseInt(uccId),
@@ -274,9 +274,9 @@ async function getStretchPiuRoAndStateBasedOnUserId(req) {
     });
 
     const piuIds = [...new Set(piuRecords.map(record => record.piu_id))];
-    
+
     if (piuIds.length === 0) {
-      console.log("No PIUs found for the given UCC IDs.");
+      logger.info("No PIUs found for the given UCC IDs.");
       return [];
     }
 
@@ -294,7 +294,7 @@ async function getStretchPiuRoAndStateBasedOnUserId(req) {
     });
 
     const roIds = [...new Set(piuOffices.map(office => office.parent_id).filter(id => id !== null))];
-    
+
     let roOffices = [];
     if (roIds.length > 0) {
       roOffices = await prisma.or_office_master.findMany({
@@ -456,7 +456,7 @@ export async function insertTypeOfWork(req, userId, reqBody) {
           const segmentLength = calculateSegmentLength(item.startChainage, item.endChainage);
           totalContractLength += segmentLength;
 
-          const segmentData = await getSegmentInsertData(item, typeOfWorkId, userId, TYPE_OF_ISSUES.SEGMENT, uccId);
+          const segmentData = await getSegmentInsertData(item, typeOfWorkId, userId, TYPE_OF_ISSUES.SEGMENT, uccId, stretchUsc[0]);
           return segmentData;
         });
         const resolvedSegmentData = await Promise.all(segmentNamePromises);
@@ -480,12 +480,17 @@ export async function insertTypeOfWork(req, userId, reqBody) {
       }
     }
 
-    await prisma.ucc_type_of_work_location.createMany({
-      data: dataToInsert,
-    });
+
+    if (dataToInsert.length > 0) {
+      await bulkInsertTypeOfWork(dataToInsert);
+    }
+
     logger.info("Type of work created successfully.");
 
     const formattedContractLength = (totalContractLength).toFixed(2);
+
+
+    await updateUccMasterGeom(uccId, resultName);
 
     return {
       uccId,
@@ -766,9 +771,9 @@ export const getcontractListService = async (req, res) => {
       where: { office_name: { in: piu } },
       select: { office_id: true },
     });
-  
+
     const officeIdList = officeIds.map(o => o.office_id);
-  
+
     // Step 2: Use these IDs in the filtering
     if (officeIdList.length > 0) {
       whereClauses.push(`"PIU" IS NOT NULL AND "PIU" IN (${piu.map(p => `'${p}'`).join(",")})`);
@@ -826,7 +831,8 @@ export const getcontractListService = async (req, res) => {
         um."project_name", 
         um."stretch_name", 
         um."stretch_id" AS "StretchID",
-        um."status" AS "ProjectStatus"
+        um."status" AS "ProjectStatus",
+        public.ST_AsGeoJSON(um.geom) AS geojson
       FROM "tenant_nhai"."ucc_master" um
       LEFT JOIN "tenant_nhai"."or_office_master" oom 
         ON oom."office_id" = ANY(um."piu_id")
@@ -840,7 +846,7 @@ export const getcontractListService = async (req, res) => {
       GROUP BY um."permanent_ucc", um."contract_name", 
                um."contract_length", um."scheme_id", um."corridor_code_id", 
                um."phase_code_id", um."project_name", um."stretch_name", 
-               um."stretch_id", um."status"
+               um."stretch_id", um."status", um.geom
       LIMIT ${limit} OFFSET ${skip}
     `),
     prisma.$queryRawUnsafe(`
@@ -859,27 +865,27 @@ export const getcontractListService = async (req, res) => {
     return acc;
   }, {});
 
-  let finalContractList ;
-  if(designation == STRING_CONSTANT.IT_HEAD){
-   finalContractList = await Promise.all(result.map(async (item) => {
-    const [editCount] = await Promise.all([
-      prisma.ucc_change_log.count({
-        where: { ucc_id: item.UCC }
-      })
-    ]);
-  
-    return {
+  let finalContractList;
+  if (designation == STRING_CONSTANT.IT_HEAD) {
+    finalContractList = await Promise.all(combinedResults.map(async (item) => {
+      const [editCount] = await Promise.all([
+        prisma.ucc_change_log.count({
+          where: { ucc_id: item.UCC }
+        })
+      ]);
+
+      return {
+        ...item,
+        stretchName: stretchMap[item.StretchID] || item.stretch_name, // Add stretchName
+        editCount // Add editCount
+      };
+    }));
+  } else {
+    finalContractList = combinedResults.map((item) => ({
       ...item,
-      stretchName: stretchMap[item.StretchID] || item.stretch_name, // Add stretchName
-      editCount // Add editCount
-    };
-  }));
-}else{
-  finalContractList = combinedResults.map((item) => ({
-    ...item,
-    stretchName: stretchMap[item.StretchID] || item.stretch_name,
-  }));
-}
+      stretchName: stretchMap[item.StretchID] || item.stretch_name,
+    }));
+  }
 
   if (exports) {
     const headers = [
@@ -962,7 +968,7 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
         user_id: uccRecord.created_by,
       },
       select: {
-        id:true,
+        id: true,
         type_of_issue: true,
         start_distance_km: true,
         start_distance_metre: true,
@@ -980,25 +986,25 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
         },
       },
     });
-    
+
     const groupedData = type_of_work.reduce((acc, item) => {
       const nameOfWork = item.type_of_work_ucc_type_of_work_location_type_of_workTotype_of_work.name_of_work;
-  
+
       if (!acc[nameOfWork]) {
-          acc[nameOfWork] = [];
+        acc[nameOfWork] = [];
       }
-  
+
       acc[nameOfWork].push(item);
       return acc;
-  }, {});
-  
-  // Convert to array format (optional)
-  const type_of_work_result = Object.entries(groupedData).map(([name_of_work, items]) => ({
+    }, {});
+
+    // Convert to array format (optional)
+    const type_of_work_result = Object.entries(groupedData).map(([name_of_work, items]) => ({
       name_of_work,
       data: items
-  }));
-  
-    
+    }));
+
+
     const fileRecord = await prisma.documents_master.findMany({
       where: {
         module_type_id: uccRecord.ucc_id,
@@ -1014,7 +1020,7 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
         module_type_id: true
       },
     });
-        
+
     const ucc_nh_state_details_data = await prisma.ucc_nh_state_details.findMany({
       where: {
         ucc_id: uccRecord.ucc_id,
@@ -1042,13 +1048,13 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
       delete id.ml_states
       ucc_nh_details_final_data.push(id)
     }
-    
+
     const ucc_nh_details_data = await prisma.ucc_nh_details.findMany({
       where: {
         ucc_id: uccRecord.ucc_id,
       },
     });
-    
+
     const data = {
       contract_name: uccRecord.contract_name,
       short_name: uccRecord.short_name,
@@ -1070,7 +1076,7 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
   }
 };
 
-export const getDataFromS3 = async(filePath, bucket_name) =>{
+export const getDataFromS3 = async (filePath, bucket_name) => {
   try {
     const fileKey = filePath;
     const params = {
@@ -1103,7 +1109,7 @@ export async function createFinalUCC(req, uccId) {
 
     logger.info("Fetching longest stretch data.")
     const longestStretch = await prisma.$queryRaw`
-        SELECT "PhaseCode", "CorridorCode", "StretchCode", "StretchID"
+        SELECT "PhaseCode", "CorridorCode", "StretchCode", "StretchID", "ProjectName"
         FROM "nhai_gis"."Stretches"
         WHERE "StretchID" = ANY(${stretchIds})
         ORDER BY public.ST_Length(geom) DESC
@@ -1115,7 +1121,7 @@ export async function createFinalUCC(req, uccId) {
     }
     logger.info("Longest stretch data fetched successfully.")
 
-    const { PhaseCode, CorridorCode, StretchCode, StretchID } = longestStretch[0];
+    const { PhaseCode, CorridorCode, StretchCode, StretchID, ProjectName } = longestStretch[0];
 
     logger.info("Fetching ucc nh state details to get state code.")
     const nhState = await prisma.ucc_nh_state_details.findFirst({
@@ -1157,7 +1163,8 @@ export async function createFinalUCC(req, uccId) {
           phase_code_id: parseInt(PhaseCode),
           corridor_code_id: parseInt(CorridorCode),
           permanent_ucc: permanentUCC,
-          id: permanentUCC
+          id: permanentUCC,
+          stretch_name: ProjectName
         },
       });
 
@@ -1167,10 +1174,10 @@ export async function createFinalUCC(req, uccId) {
       });
 
       await prisma.documents_master.updateMany({
-        where: { 
+        where: {
           module_type_id: parseInt(uccId),
-          module_type: STRING_CONSTANT.UCC, 
-          status: STRING_CONSTANT.DRAFT 
+          module_type: STRING_CONSTANT.UCC,
+          status: STRING_CONSTANT.DRAFT
         },
         data: { status: STRING_CONSTANT.BALANCE_FOR_AWARD },
       });
@@ -1268,3 +1275,141 @@ async function generatePackageCode(stretchCode) {
     throw error;
   }
 }
+
+export async function bulkInsertTypeOfWork(dataToInsert) {
+  if (!Array.isArray(dataToInsert) || dataToInsert.length === 0) {
+    throw new APIError(STATUS_CODES.BAD_REQUEST, "No valid data to insert.");
+  }
+
+  try {
+    const values = dataToInsert
+      .map((data) => {
+        let geomValue = "NULL";
+        if (data.geom) {
+          const geometry = {
+            type: STRING_CONSTANT.MULTI_LINE_STRING,
+            coordinates: data.geom.type === STRING_CONSTANT.MULTI_LINE_STRING
+              ? data.geom.coordinates
+              : [data.geom.coordinates.coordinates]
+          }
+          geomValue = `public.ST_SetSRID(public.ST_GeomFromGeoJSON('${JSON.stringify(geometry)}'), 4326)`;
+        }
+
+        return `(
+          ${data.ucc},
+          ${data.type_of_work},
+          ${data.user_id},
+          ${data.status},
+          '${data.type_of_issue}',
+          ${data.startlatitude || "NULL"},
+          ${data.startlongitude || "NULL"},
+          ${data.endlatitude || "NULL"},
+          ${data.endlongitude || "NULL"},
+          ${data.start_distance_km || "NULL"},
+          ${data.start_distance_metre || "NULL"},
+          ${data.end_distance_km || "NULL"},
+          ${data.end_distance_metre || "NULL"},
+          ${data.lane || "NULL"},
+          ${geomValue}
+        )`
+      }).join(", ");
+
+    const query = `
+      INSERT INTO tenant_nhai.ucc_type_of_work_location 
+      (
+        ucc, type_of_work, user_id, status, type_of_issue, 
+        startlatitude, startlongitude, endlatitude, endlongitude, 
+        start_distance_km, start_distance_metre, end_distance_km, 
+        end_distance_metre, lane, geom
+      ) 
+      VALUES ${values};
+    `;
+
+    await prisma.$executeRawUnsafe(query);
+    logger.info("Bulk insert into ucc_type_of_work_location successful.");
+  } catch (error) {
+    logger.error(`Error in bulkInsertTypeOfWork: ${error.message}`);
+    throw new APIError(STATUS_CODES.INTERNAL_SERVER_ERROR, "Failed to insert type of work data.");
+  }
+}
+
+export async function updateUccMasterGeom(uccId, resultName) {
+  try {
+    logger.info("Fetching and ordering segment geometries for UCC ID");
+
+    // Fetch geometries sorted by start distance (to maintain order)
+    const result = await prisma.$queryRaw`
+      SELECT public.ST_AsGeoJSON(geom) AS segment_geojson,
+             start_distance_km, start_distance_metre,
+             end_distance_km, end_distance_metre
+      FROM tenant_nhai.ucc_type_of_work_location
+      WHERE ucc = ${uccId} AND geom IS NOT NULL
+      ORDER BY start_distance_km, start_distance_metre;
+    `;
+
+    if (!result || result.length === 0) {
+      throw new Error("No valid geometries found for this UCC.");
+    }
+
+    let mergedCoordinates = [];
+    let previousEnd = null;
+
+    for (const row of result) {
+      const segmentGeoJSON = JSON.parse(row.segment_geojson);
+    
+      if (![STRING_CONSTANT.LINE_STRING, STRING_CONSTANT.MULTI_LINE_STRING].includes(segmentGeoJSON.type)) {
+        logger.error({message: `Unexpected geometry type found: ${segmentGeoJSON.type}`});
+        continue;
+      }
+    
+      let segmentCoordinates = [];
+    
+      if (segmentGeoJSON.type === STRING_CONSTANT.LINE_STRING) {
+        segmentCoordinates.push(segmentGeoJSON.coordinates);  // Wrap single LineString in array
+      } else if (segmentGeoJSON.type === STRING_CONSTANT.MULTI_LINE_STRING) {
+        segmentCoordinates = segmentGeoJSON.coordinates;  // Use MultiLineString as is
+      }
+    
+      // Now `segmentCoordinates` will always be an array of lines
+      for (const line of segmentCoordinates) {
+        const segmentStart = line[0];  // First point of the line
+        const segmentEnd = line[line.length - 1];  // Last point
+    
+        // Handle gaps between segments
+        if (previousEnd && (segmentStart[0] !== previousEnd[0] || segmentStart[1] !== previousEnd[1])) {
+          logger.info(`Gap detected! Preserving gap between ${previousEnd} and ${segmentStart}`);
+          mergedCoordinates.push([]);  // Empty array to represent the gap
+        }
+    
+        mergedCoordinates.push(line);
+        previousEnd = segmentEnd;
+      }
+    }
+    
+
+    // Convert to a valid MultiLineString
+    const mergedGeoJSON = {
+      type: STRING_CONSTANT.MULTI_LINE_STRING,
+      coordinates: mergedCoordinates.filter(segment => segment.length > 0) // Remove empty gaps from final JSON
+    };
+
+    logger.info("Final MultiLineString with Gaps Preserved");
+
+    // Update ucc_master with the merged geometry and names
+    await prisma.$executeRaw`
+      UPDATE tenant_nhai.ucc_master
+      SET 
+        geom = public.ST_SetSRID(public.ST_GeomFromGeoJSON(${JSON.stringify(mergedGeoJSON)}), 4326),
+        contract_name = ${resultName},
+        project_name = ${resultName}
+      WHERE ucc_id = ${uccId};
+    `;
+
+    logger.info(`UCC Master updated successfully for ID ${uccId}`);
+  } catch (error) {
+    logger.error({message: "Error updating UCC master:", error});
+    throw error;
+  }
+}
+
+
