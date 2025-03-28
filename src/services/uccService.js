@@ -831,7 +831,8 @@ export const getcontractListService = async (req, res) => {
         um."project_name", 
         um."stretch_name", 
         um."stretch_id" AS "StretchID",
-        um."status" AS "ProjectStatus"
+        um."status" AS "ProjectStatus",
+        public.ST_AsGeoJSON(um.geom) AS geojson
       FROM "tenant_nhai"."ucc_master" um
       LEFT JOIN "tenant_nhai"."or_office_master" oom 
         ON oom."office_id" = ANY(um."piu_id")
@@ -845,7 +846,7 @@ export const getcontractListService = async (req, res) => {
       GROUP BY um."permanent_ucc", um."contract_name", 
                um."contract_length", um."scheme_id", um."corridor_code_id", 
                um."phase_code_id", um."project_name", um."stretch_name", 
-               um."stretch_id", um."status"
+               um."stretch_id", um."status", um.geom
       LIMIT ${limit} OFFSET ${skip}
     `),
     prisma.$queryRawUnsafe(`
@@ -866,7 +867,7 @@ export const getcontractListService = async (req, res) => {
 
   let finalContractList;
   if (designation == STRING_CONSTANT.IT_HEAD) {
-    finalContractList = await Promise.all(result.map(async (item) => {
+    finalContractList = await Promise.all(combinedResults.map(async (item) => {
       const [editCount] = await Promise.all([
         prisma.ucc_change_log.count({
           where: { ucc_id: item.UCC }
