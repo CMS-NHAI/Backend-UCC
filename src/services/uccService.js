@@ -978,6 +978,7 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
         startlongitude: true,
         endlatitude: true,
         endlongitude: true,
+        lane: true,
         type_of_work_ucc_type_of_work_location_type_of_workTotype_of_work: {  // Correct relation field
           select: {
             name_of_work: true, // Selecting specific field from related table
@@ -1006,10 +1007,8 @@ export const basicDetailsOnReviewPage = async (id, userId) => {
 
     const fileRecord = await prisma.documents_master.findMany({
       where: {
-        // created_by: uccRecord.created_by.toString(),
-        // is_deleted: false,
-        // ucc_id: id
-        ucc_id: uccRecord.ucc_id
+        module_type_id: uccRecord.ucc_id,
+        module_type: STRING_CONSTANT.UCC
       },
       select: {
         document_id: true,
